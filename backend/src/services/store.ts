@@ -41,7 +41,10 @@ class Store {
 
   // === Workspace ===
   async getWorkspace(idOrSlug: string): Promise<Workspace | undefined> {
-    const { rows } = await pool.query(`SELECT * FROM workspaces WHERE id=$1 OR slug=$1`, [idOrSlug])
+    const { rows } = await pool.query(
+      `SELECT * FROM workspaces WHERE id::text=$1 OR slug=$1`,
+      [idOrSlug]
+    )
     return rows[0] ? this.toWorkspace(rows[0]) : undefined
   }
 
