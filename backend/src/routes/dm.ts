@@ -19,8 +19,12 @@ export async function dmRoutes(app: FastifyInstance) {
     const { content } = req.body as any
     if (!content?.trim()) return reply.status(400).send({ error: '내용 필요' })
     const message = await store.createDmMessage(workspaceId, currentUserId, userId, content.trim())
-    
-    // 자동 AI 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
+    // 소켓으로 실시간 브로드캐스트
+    const io = (app as any).io
+    if (io) {
+      io.to(`dm:${userId}`).emit('new_dm', message)
+      io.to(`dm:${currentUserId}`).emit('new_dm', message)
+    }
     return message
   })
 }
