@@ -90,7 +90,7 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
   }
 
   const handlePaste = async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData.items
+    const items = Array.from(e.clipboardData.items)
     for (const item of items) {
       if (item.type.startsWith('image/')) {
         e.preventDefault()
