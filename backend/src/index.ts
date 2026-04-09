@@ -11,7 +11,8 @@ import { workspaceRoutes } from './routes/workspace.js'
 import { fileRoutes } from './routes/files.js'
 import { store } from './services/store.js'
 import { initDB } from './services/db.js'
-import { generateAIResponse, shouldAIRespond } from './services/ai-agent.js'
+// AI 자동 응답 비활성화 — OpenClaw 인스턴스가 직접 로그인해서 메시지 전송
+// import { generateAIResponse, shouldAIRespond } from './services/ai-agent.js'
 import path from 'path'
 
 const JWT_SECRET = process.env.JWT_SECRET
@@ -72,20 +73,7 @@ io.on('connection', (socket) => {
       io.to(channelId).emit('new_message', message)
     }
 
-    if (!user.isBot && !threadId) {
-      const members = await store.getMembers(user.workspaceId)
-      for (const agent of members.filter(m => m.isBot)) {
-        if (!shouldAIRespond(agent.id, content || '', false)) continue
-        setTimeout(async () => {
-          io.to(channelId).emit('ai_thinking', { agentId: agent.id, agentName: agent.name })
-          const response = await generateAIResponse(agent.id, channelId, content || '', user.name)
-          io.to(channelId).emit('ai_done_thinking', { agentId: agent.id })
-          if (!response) return
-          const aiMsg = await store.addMessage({ channelId, senderId: agent.id, senderName: agent.name, senderIsBot: true, content: response })
-          io.to(channelId).emit('new_message', aiMsg)
-        }, 1000 + Math.random() * 2000)
-      }
-    }
+    // 자동 AI 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
   })
 
   socket.on('send_dm', async ({ toUserId, content, fileUrl, fileName }: any) => {
@@ -94,19 +82,7 @@ io.on('connection', (socket) => {
     io.to(`dm:${toUserId}`).emit('new_dm', message)
     socket.emit('new_dm', message)
 
-    if (!user.isBot) {
-      const recipient = await store.getUserById(toUserId)
-      if (recipient?.isBot) {
-        setTimeout(async () => {
-          io.to(`dm:${user.id}`).emit('dm_typing', { userId: toUserId, userName: recipient.name, isTyping: true })
-          const response = await generateAIResponse(toUserId, `dm:${user.id}`, content.trim(), user.name)
-          io.to(`dm:${user.id}`).emit('dm_typing', { userId: toUserId, userName: recipient.name, isTyping: false })
-          if (!response) return
-          const aiMsg = await store.createDmMessage(user.workspaceId, toUserId, user.id, response)
-          io.to(`dm:${user.id}`).emit('new_dm', aiMsg)
-        }, 1000 + Math.random() * 2000)
-      }
-    }
+    // 자동 DM 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
   })
 
   socket.on('typing', ({ channelId, isTyping }: any) => {

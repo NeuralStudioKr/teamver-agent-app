@@ -30,7 +30,7 @@ export default function MessageItem({ message: msg, currentUserId, apiBase, onTh
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 mb-0.5">
           <span className="text-sm font-semibold">{msg.senderName}</span>
-          {msg.senderIsBot && <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">AI</span>}
+
           <span className="text-xs text-muted-foreground">
             {format(new Date(msg.createdAt), 'HH:mm', { locale: ko })}
           </span>

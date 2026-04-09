@@ -20,20 +20,7 @@ export async function dmRoutes(app: FastifyInstance) {
     if (!content?.trim()) return reply.status(400).send({ error: '내용 필요' })
     const message = await store.createDmMessage(workspaceId, currentUserId, userId, content.trim())
     
-    // AI 응답
-    if (!isBot) {
-      const recipient = await store.getUserById(userId)
-      if (recipient?.isBot) {
-        const { generateAIResponse } = await import('../services/ai-agent.js')
-        const io = (app as any).io
-        setTimeout(async () => {
-          const response = await generateAIResponse(userId, 'dm', content.trim(), name)
-          if (!response) return
-          const aiMsg = await store.createDmMessage(workspaceId, userId, currentUserId, response)
-          if (io) io.to(`dm:${currentUserId}`).emit('new_dm', aiMsg)
-        }, 1000 + Math.random() * 2000)
-      }
-    }
+    // 자동 AI 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
     return message
   })
 }
