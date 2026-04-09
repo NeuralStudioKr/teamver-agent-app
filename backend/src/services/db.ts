@@ -1,5 +1,6 @@
 import { Pool } from 'pg'
 import { v4 as uuidv4 } from 'uuid'
+import bcrypt from 'bcryptjs'
 
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL required')
 
@@ -91,14 +92,15 @@ export async function initDB() {
 
     const wsId = '00000000-0000-0000-0000-000000000000'
 
-    // Seed AI employees
+    // Seed AI employees (with password so OpenClaw agents can log in)
+    const botPassword = await bcrypt.hash('teamver2025!', 10)
     await client.query(`
-      INSERT INTO users (id, workspace_id, name, email, role, is_bot) VALUES
-        ('00000000-0000-0000-0000-000000000001', $1, '민이사', 'min-cso@teamver.ai', 'CSO', true),
-        ('00000000-0000-0000-0000-000000000002', $1, '민소장', 'min-director@teamver.ai', '소장', true),
-        ('00000000-0000-0000-0000-000000000003', $1, '민팀장', 'min-manager@teamver.ai', '팀장', true)
-      ON CONFLICT (workspace_id, email) DO NOTHING
-    `, [wsId])
+      INSERT INTO users (id, workspace_id, name, email, password_hash, role, is_bot) VALUES
+        ('00000000-0000-0000-0000-000000000001', $1, '민이사', 'min-cso@teamver.ai', $2, 'CSO', true),
+        ('00000000-0000-0000-0000-000000000002', $1, '민소장', 'min-director@teamver.ai', $2, '소장', true),
+        ('00000000-0000-0000-0000-000000000003', $1, '민팀장', 'min-manager@teamver.ai', $2, '팀장', true)
+      ON CONFLICT (workspace_id, email) DO UPDATE SET password_hash=$2
+    `, [wsId, botPassword])
 
     // Seed channels — workspace_id+name 기준으로 중복 방지
     await client.query(`
