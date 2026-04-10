@@ -14,7 +14,7 @@ import { notifyNewMessage, notifyNewDm } from './services/webhook.js'
 import { store } from './services/store.js'
 import { initDB } from './services/db.js'
 // AI 자동 응답 비활성화 — OpenClaw 인스턴스가 직접 로그인해서 메시지 전송
-// import { generateAIResponse, shouldAIRespond } from './services/ai-agent.js'
+import { generateAIResponse, shouldAIRespond } from './services/ai-agent.js'
 import path from 'path'
 
 const JWT_SECRET = process.env.JWT_SECRET
@@ -90,7 +90,29 @@ io.on('connection', (socket) => {
         messageId: message.id,
       })
     }
-    // 자동 AI 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
+    // AI 자동 응답 (봇이름 언급 시)
+    if (!user.isBot) {
+      const agents = [
+        { id: '00000000-0000-0000-0000-000000000001', name: '민이사' },
+        { id: '00000000-0000-0000-0000-000000000002', name: '민소장' },
+        { id: '00000000-0000-0000-0000-000000000003', name: '민팀장' },
+      ]
+      for (const agent of agents) {
+        if (shouldAIRespond(agent.id, content || '', false)) {
+          const aiText = await generateAIResponse(agent.id, '', content || '', user.name)
+          if (aiText) {
+            const aiMsg = await store.addMessage({
+              channelId,
+              senderId: agent.id,
+              senderName: agent.name,
+              senderIsBot: true,
+              content: aiText,
+            })
+            io.to(channelId).emit('new_message', aiMsg)
+          }
+        }
+      }
+    }
   })
 
   socket.on('send_dm', async ({ toUserId, content, fileUrl, fileName }: any) => {
@@ -107,7 +129,23 @@ io.on('connection', (socket) => {
       content: content?.trim() || '',
       messageId: message.id,
     })
-    // 자동 DM 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
+    // AI DM 자동 응답
+    if (content?.trim()) {
+      const agents = [
+        { id: '00000000-0000-0000-0000-000000000001', name: '민이사' },
+        { id: '00000000-0000-0000-0000-000000000002', name: '민소장' },
+        { id: '00000000-0000-0000-0000-000000000003', name: '민팀장' },
+      ]
+      for (const agent of agents) {
+        if (shouldAIRespond(agent.id, content, false)) {
+          const aiText = await generateAIResponse(agent.id, '', content, user.name)
+          if (aiText) {
+            const aiMsg = await store.createDmMessage(user.workspaceId, agent.id, user.id, aiText)
+            io.to(`dm:${user.id}`).emit('new_dm', aiMsg)
+          }
+        }
+      }
+    }
   })
 
   socket.on('typing', ({ channelId, isTyping }: any) => {

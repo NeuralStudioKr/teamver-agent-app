@@ -8,6 +8,8 @@ const SLACK_BOT_TOKEN = process.env.SLACK_BRIDGE_TOKEN || ''
 const SLACK_CHANNEL_ID = process.env.SLACK_BRIDGE_CHANNEL_ID || ''
 
 async function postToSlack(text: string) {
+  // Slack 브릿지 비활성화 — teamver 대화는 teamver 안에서만 유지
+  return
   if (!SLACK_BOT_TOKEN || !SLACK_CHANNEL_ID) return
 
   fetch('https://slack.com/api/chat.postMessage', {

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { store } from '../services/store.js'
+import { generateAIResponse, shouldAIRespond } from '../services/ai-agent.js'
 
 export async function channelRoutes(app: FastifyInstance) {
   app.get('/channels', { onRequest: [app.authenticate] }, async (req) => {
@@ -37,6 +38,29 @@ export async function channelRoutes(app: FastifyInstance) {
         io.to(channelId).emit('thread_reply', { threadId, message })
       } else {
         io.to(channelId).emit('new_message', message)
+      }
+    }
+    // AI 자동 응답 (봇이름 언급 시)
+    if (!senderIsBot) {
+      const agents = [
+        { id: '00000000-0000-0000-0000-000000000001', name: '민이사' },
+        { id: '00000000-0000-0000-0000-000000000002', name: '민소장' },
+        { id: '00000000-0000-0000-0000-000000000003', name: '민팀장' },
+      ]
+      for (const agent of agents) {
+        if (shouldAIRespond(agent.id, content || '', false)) {
+          const aiText = await generateAIResponse(agent.id, '', content || '', senderName)
+          if (aiText) {
+            const aiMsg = await store.addMessage({
+              channelId,
+              senderId: agent.id,
+              senderName: agent.name,
+              senderIsBot: true,
+              content: aiText,
+            })
+            if (io) io.to(channelId).emit('new_message', aiMsg)
+          }
+        }
       }
     }
     return message
