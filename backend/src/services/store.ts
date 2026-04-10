@@ -30,6 +30,10 @@ class Store {
     return rows[0] ? this.toUser(rows[0]) : undefined
   }
 
+  async deleteUser(id: string): Promise<void> {
+    await pool.query(`DELETE FROM users WHERE id=$1`, [id])
+  }
+
   async verifyPassword(user: User, password: string): Promise<boolean> {
     return bcrypt.compare(password, user.passwordHash)
   }

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Hash, Plus, MessageSquare, ChevronDown, ChevronRight, Settings, LogOut } from 'lucide-react'
+import { Hash, Plus, ChevronDown, ChevronRight, LogOut, UserX } from 'lucide-react'
 import { api, clearToken, getApiBase } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +23,10 @@ export default function Sidebar({ workspace, channels, members, activeChannel, o
   const [showDMs, setShowDMs] = useState(true)
   const [newCh, setNewCh] = useState('')
   const [showNewCh, setShowNewCh] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const addChannel = async () => {
     if (!newCh.trim()) return
@@ -36,6 +40,20 @@ export default function Sidebar({ workspace, channels, members, activeChannel, o
   }
 
   const logout = () => { clearToken(); router.push('/login') }
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) { setDeleteError('비밀번호를 입력해주세요.'); return }
+    setDeleting(true); setDeleteError('')
+    try {
+      await api.deleteAccount(deletePassword)
+      clearToken()
+      router.push('/login')
+    } catch (e: any) {
+      setDeleteError(e.message || '탈퇴 실패')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const primaryColor = workspace?.primaryColor || '#6366f1'
 
@@ -151,10 +169,40 @@ export default function Sidebar({ workspace, channels, members, activeChannel, o
           <div className="text-xs font-medium truncate">{currentUser?.name}</div>
           <div className="text-xs text-muted-foreground truncate">{currentUser?.role}</div>
         </div>
-        <button onClick={logout} className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent/50 transition-colors">
+        <button onClick={() => setShowDeleteModal(true)} title="회원탈퇴" className="text-muted-foreground hover:text-destructive p-1 rounded-md hover:bg-accent/50 transition-colors">
+          <UserX size={14} />
+        </button>
+        <button onClick={logout} title="로그아웃" className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent/50 transition-colors">
           <LogOut size={14} />
         </button>
       </div>
+
+      {/* 회원탈퇴 모달 */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="text-base font-semibold mb-1">회원 탈퇴</h3>
+            <p className="text-sm text-muted-foreground mb-4">탈퇴 후 모든 데이터가 삭제됩니다. 비밀번호를 입력해 확인해주세요.</p>
+            {deleteError && <p className="text-destructive text-xs mb-3 p-2 bg-destructive/10 rounded">{deleteError}</p>}
+            <input
+              type="password" value={deletePassword}
+              onChange={e => setDeletePassword(e.target.value)}
+              placeholder="비밀번호 입력"
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-destructive mb-4"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError('') }}
+                className="flex-1 px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                취소
+              </button>
+              <button onClick={handleDeleteAccount} disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50">
+                {deleting ? '처리 중...' : '탈퇴하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -27,4 +27,14 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await store.getUserById(u.id)
     return user ? { id: user.id, name: user.name, email: user.email, role: user.role, isBot: user.isBot } : null
   })
+
+  app.delete('/auth/me', { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { id, workspaceId } = (req as any).user
+    const { password } = req.body as any
+    const user = await store.getUserById(id)
+    if (!user) return reply.status(404).send({ error: '사용자 없음' })
+    if (!await store.verifyPassword(user, password)) return reply.status(401).send({ error: '비밀번호가 올바르지 않습니다.' })
+    await store.deleteUser(id)
+    return { ok: true }
+  })
 }

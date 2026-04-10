@@ -28,6 +28,8 @@ export const api = {
   register: (name: string, email: string, password: string) =>
     request<any>('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
   me: () => request<any>('/auth/me'),
+  deleteAccount: (password: string) =>
+    request<any>('/auth/me', { method: 'DELETE', body: JSON.stringify({ password }) }),
 
   getWorkspace: () => request<any>('/workspace'),
   updateWorkspace: (data: any) => request<any>('/workspace', { method: 'PATCH', body: JSON.stringify(data) }),
