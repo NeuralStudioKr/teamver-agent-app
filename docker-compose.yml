@@ -31,6 +31,8 @@ services:
       - DATABASE_URL=postgresql://teamver:${POSTGRES_PASSWORD:-ta_dev_password}@postgres:5432/teamver_agent
       - AI_RESPONSE_TIMEOUT_MS=${AI_RESPONSE_TIMEOUT_MS:-10000}
       - AI_RANDOM_RESPONSE_CHANCE=${AI_RANDOM_RESPONSE_CHANCE:-0.2}
+      - SLACK_BRIDGE_TOKEN=${SLACK_BRIDGE_TOKEN:-}
+      - SLACK_BRIDGE_CHANNEL_ID=${SLACK_BRIDGE_CHANNEL_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

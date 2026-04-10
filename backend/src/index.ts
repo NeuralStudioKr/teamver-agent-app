@@ -10,6 +10,7 @@ import { dmRoutes } from './routes/dm.js'
 import { workspaceRoutes } from './routes/workspace.js'
 import { fileRoutes } from './routes/files.js'
 import { driveRoutes } from './routes/drive.js'
+import { notifyNewMessage, notifyNewDm } from './services/webhook.js'
 import { store } from './services/store.js'
 import { initDB } from './services/db.js'
 // AI 자동 응답 비활성화 — OpenClaw 인스턴스가 직접 로그인해서 메시지 전송
@@ -75,6 +76,20 @@ io.on('connection', (socket) => {
       io.to(channelId).emit('new_message', message)
     }
 
+    // OpenClaw 웹훅 알림 (봇 제외 메시지만)
+    if (!user.isBot) {
+      const channels = await store.getChannels(user.workspaceId)
+      const ch = channels.find((c: any) => c.id === channelId)
+      notifyNewMessage({
+        channelId,
+        channelName: ch?.name || channelId,
+        senderId: user.id,
+        senderName: user.name,
+        senderIsBot: user.isBot,
+        content: content || '',
+        messageId: message.id,
+      })
+    }
     // 자동 AI 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
   })
 
@@ -84,6 +99,14 @@ io.on('connection', (socket) => {
     io.to(`dm:${toUserId}`).emit('new_dm', message)
     socket.emit('new_dm', message)
 
+    // OpenClaw 웹훅 알림 (DM)
+    notifyNewDm({
+      fromUserId: user.id,
+      fromUserName: user.name,
+      toUserId,
+      content: content?.trim() || '',
+      messageId: message.id,
+    })
     // 자동 DM 응답 없음 — OpenClaw 인스턴스들이 직접 소켓으로 참여
   })
 
