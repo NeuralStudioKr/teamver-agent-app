@@ -75,6 +75,25 @@ class Store {
     return rows.map(r => this.toChannel(r))
   }
 
+  async getChannelMembers(channelId: string, workspaceId: string): Promise<any[]> {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.name, u.email, u.role, u.is_bot, u.avatar_url
+       FROM users u
+       INNER JOIN channel_members cm ON u.id = cm.user_id
+       WHERE cm.channel_id=$1 AND u.workspace_id=$2
+       ORDER BY u.is_bot DESC, u.created_at ASC`,
+      [channelId, workspaceId]
+    )
+    return rows.map(r => ({ id: r.id, name: r.name, email: r.email, role: r.role, isBot: r.is_bot, avatarUrl: r.avatar_url }))
+  }
+
+  async addChannelMember(channelId: string, userId: string): Promise<void> {
+    await pool.query(
+      `INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [channelId, userId]
+    )
+  }
+
   async createChannel(workspaceId: string, name: string, description?: string): Promise<Channel> {
     const { rows } = await pool.query(
       `INSERT INTO channels (workspace_id, name, description) VALUES ($1,$2,$3) RETURNING *`,

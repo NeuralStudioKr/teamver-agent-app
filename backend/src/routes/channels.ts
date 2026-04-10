@@ -48,6 +48,22 @@ export async function channelRoutes(app: FastifyInstance) {
     return members.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, isBot: u.isBot, avatarUrl: u.avatarUrl }))
   })
 
+  // 채널 멤버 목록
+  app.get('/channels/:channelId/members', { onRequest: [app.authenticate] }, async (req) => {
+    const { channelId } = req.params as any
+    const { workspaceId } = (req as any).user
+    return store.getChannelMembers(channelId, workspaceId)
+  })
+
+  // 채널 멤버 초대
+  app.post('/channels/:channelId/members', { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { channelId } = req.params as any
+    const { userId } = req.body as any
+    if (!userId) return reply.status(400).send({ error: 'userId 필요' })
+    await store.addChannelMember(channelId, userId)
+    return { ok: true }
+  })
+
   // Thread
   app.get('/messages/:messageId/replies', { onRequest: [app.authenticate] }, async (req) => {
     const { messageId } = req.params as any

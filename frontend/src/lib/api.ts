@@ -48,6 +48,9 @@ export const api = {
   createChannel: (name: string, description?: string) =>
     request<any>('/channels', { method: 'POST', body: JSON.stringify({ name, description }) }),
   getMessages: (channelId: string) => request<any[]>(`/channels/${channelId}/messages`),
+  getChannelMembers: (channelId: string) => request<any[]>(`/channels/${channelId}/members`),
+  inviteChannelMember: (channelId: string, userId: string) =>
+    request<any>(`/channels/${channelId}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),
   getMembers: () => request<any[]>('/members'),
 
   getThreadReplies: (messageId: string) => request<any[]>(`/messages/${messageId}/replies`),

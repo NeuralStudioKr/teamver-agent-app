@@ -152,6 +152,7 @@ export default function Sidebar({ workspace, channels, members, activeChannel, o
                       {member.name[0]}
                     </div>
                     <span className="truncate">{member.name}</span>
+                    {member.isBot && <span className="text-xs text-muted-foreground ml-auto opacity-60">AI</span>}
                   </Link>
                 )
               })}

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 import MessageItem from './MessageItem'
 import ThreadPanel from './ThreadPanel'
-import { Send, Paperclip, Smile, Hash } from 'lucide-react'
+import { Send, Paperclip, Hash, Users, UserPlus, X } from 'lucide-react'
 
 interface ChatAreaProps {
   channelId: string
@@ -21,6 +21,10 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
   const [activeThread, setActiveThread] = useState<any>(null)
   const [thinking, setThinking] = useState<Record<string, boolean>>({})
   const [typingUsers, setTypingUsers] = useState<string[]>([])
+  const [channelMembers, setChannelMembers] = useState<any[]>([])
+  const [showMembers, setShowMembers] = useState(false)
+  const [showInvite, setShowInvite] = useState(false)
+  const [allMembers, setAllMembers] = useState<any[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<any>(null)
 
@@ -28,8 +32,14 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
     if (!channelId) return
     setLoading(true)
     try {
-      const msgs = await api.getMessages(channelId)
+      const [msgs, members, all] = await Promise.all([
+        api.getMessages(channelId),
+        api.getChannelMembers(channelId),
+        api.getMembers(),
+      ])
       setMessages(msgs)
+      setChannelMembers(members)
+      setAllMembers(all)
     } finally {
       setLoading(false)
     }
@@ -141,9 +151,68 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
     <div className="flex-1 flex h-full overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+        <div className="px-4 py-3 border-b border-border flex items-center gap-2 relative">
           <Hash size={16} className="text-muted-foreground" />
-          <span className="font-semibold text-sm">채널</span>
+          <span className="font-semibold text-sm flex-1">채널</span>
+          <button
+            onClick={() => { setShowMembers(v => !v); setShowInvite(false) }}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
+          >
+            <Users size={14} />
+            <span>{channelMembers.length}명</span>
+          </button>
+          <button
+            onClick={() => { setShowInvite(v => !v); setShowMembers(false) }}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
+            title="멤버 초대"
+          >
+            <UserPlus size={14} />
+          </button>
+
+          {/* 멤버 목록 패널 */}
+          {showMembers && (
+            <div className="absolute right-4 top-full mt-1 w-56 bg-card border border-border rounded-xl shadow-lg z-20 p-2">
+              <div className="flex items-center justify-between px-2 py-1.5 mb-1">
+                <span className="text-xs font-semibold text-muted-foreground">채널 멤버 ({channelMembers.length})</span>
+                <button onClick={() => setShowMembers(false)}><X size={12} className="text-muted-foreground" /></button>
+              </div>
+              {channelMembers.map(m => (
+                <div key={m.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/40">
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold flex-shrink-0">{m.name[0]}</div>
+                  <span className="text-sm flex-1 truncate">{m.name}</span>
+                  {m.isBot && <span className="text-xs text-muted-foreground opacity-60">AI</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 초대 패널 */}
+          {showInvite && (
+            <div className="absolute right-4 top-full mt-1 w-56 bg-card border border-border rounded-xl shadow-lg z-20 p-2">
+              <div className="flex items-center justify-between px-2 py-1.5 mb-1">
+                <span className="text-xs font-semibold text-muted-foreground">멤버 초대</span>
+                <button onClick={() => setShowInvite(false)}><X size={12} className="text-muted-foreground" /></button>
+              </div>
+              {allMembers.filter(m => !channelMembers.find(cm => cm.id === m.id)).map(m => (
+                <button
+                  key={m.id}
+                  onClick={async () => {
+                    await api.inviteChannelMember(channelId, m.id)
+                    const updated = await api.getChannelMembers(channelId)
+                    setChannelMembers(updated)
+                  }}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-accent/40 text-left"
+                >
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold flex-shrink-0">{m.name[0]}</div>
+                  <span className="text-sm flex-1 truncate">{m.name}</span>
+                  {m.isBot && <span className="text-xs text-muted-foreground opacity-60">AI</span>}
+                </button>
+              ))}
+              {allMembers.filter(m => !channelMembers.find(cm => cm.id === m.id)).length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">모든 멤버가 이미 참여 중</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Messages */}
