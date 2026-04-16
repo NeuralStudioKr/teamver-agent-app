@@ -24,7 +24,28 @@
 
 ## 1. 사전 요구 (노트북 쪽)
 
-이 저장소가 클론된 판매자 노트북에 다음이 있어야 한다. 부족한 게 있으면 설치 후 진행한다.
+### 1.1 단일 시크릿 파일 — **가장 중요**
+
+판매자 노트북에 다음 파일이 존재해야 한다:
+
+```
+/home/sangmin/projects/openclaw/try3/SECRETS.local.md
+```
+
+이 파일 **하나에** fresh Claude가 배포·운영에 필요한 모든 접근 정보가 집약되어 있다:
+- 판매자 SSH 키 경로·공개키
+- VPS 목록·SSH 비밀번호
+- mail-01 접속 정보 (메일박스 생성용)
+- LLM API 키 풀 (OpenRouter/Anthropic/기타, 고객 전용 키가 없을 때 fallback)
+- GitHub 토큰 (커밋·푸시용)
+- Porkbun API 키 (DNS 조작 필요 시)
+- Hostinger verification codes
+
+**fresh Claude는 작업 시작 시 먼저 이 파일을 읽는다.** 없거나 접근 불가면 즉시 판매자에게 위치·내용 확인 요청.
+
+> 이 파일은 `.local` 접미사로 git 커밋 절대 금지. 권한 0600 권장.
+
+### 1.2 로컬 도구
 
 | 요구 | 확인 명령 | 부족하면 |
 |---|---|---|
@@ -33,9 +54,14 @@
 | `jq` | `command -v jq` | `sudo apt install jq` |
 | `openssl` | `command -v openssl` | 기본 포함 |
 
-판매자 노트북의 `~/.ssh/id_ed25519` 공개키가 대상 VPS의 `/root/.ssh/authorized_keys`에 등록되어 있어야 한다. (Hostinger 콘솔에서 VPS 생성 시 SSH 키 선택하거나, 생성 직후 `ssh-copy-id` 수동 등록)
+### 1.3 VPS 측 사전 요건
 
-또한 저장소 루트(`/home/sangmin/projects/openclaw/try3/`)에 있는 **INFRA.md** 는 판매자 공용 자산 정보(메일 서버 IP, SSH 키 정보)를 담고 있다. 값이 필요할 때 참조한다. 단 **INFRA.md 자체는 커밋되지 않는다** — 거기서 읽기만.
+판매자 노트북의 `~/.ssh/id_ed25519` 공개키가 대상 VPS의 `/root/.ssh/authorized_keys`에 등록되어 있어야 한다. Hostinger 콘솔에서 VPS 생성 시 `sangmin-laptop` 키 선택하거나, 생성 직후 `ssh-copy-id` 수동 등록. 공개키 원문은 §1.1의 `SECRETS.local.md` §2.1에 있다.
+
+### 1.4 참고 파일 (내러티브·맥락용)
+
+- `/home/sangmin/projects/openclaw/try3/INFRA.md` — VPS 인벤토리와 분신 페르소나 설명 (secrets 전부는 SECRETS.local.md로 이관되어 있음)
+- `/home/sangmin/projects/openclaw/try3/SHADOW_JOB.md` — shadow 운영 에이전트 스펙 (배포와는 독립. 미래 기능)
 
 ---
 
@@ -85,17 +111,29 @@
 | OpenRouter API 키 (고객사 별도 키) | ✅ | `sk-or-v1-...` |
 | Anthropic API 키 (OpenRouter로 충분하면 빈 값) | ⬜ | `sk-ant-...` |
 
-**중요**: 시크릿은 **고객사 별도 키**가 원칙이다. 판매자 공용 키를 사용하려는 경우 판매자에게 명시적 확인을 받아라.
+**중요**: 시크릿은 **고객사 별도 키**가 원칙이다.
+- 판매자가 고객 전용 키를 아직 발급받지 못했거나 "공용 키로 진행해"라고 명시한 경우, `SECRETS.local.md §4`의 OpenRouter 공용 키를 사용한다.
+- 공용 키 사용 여부는 판매자에게 **명시적으로 확인**받아라. 임의로 공용 키를 쓰지 마라.
 
 ### 2.5 메일 서버 (mail-01)
 
 | 질문 | 기본 |
 |---|---|
 | 메일박스 자동 생성? | `true` (판매자의 mail-01에 AI 3명의 메일박스 생성) |
-| 메일 서버 IP | INFRA.md 참조 (현재: `72.62.246.21`) |
+| 메일 서버 IP | `SECRETS.local.md §3` 참조 (현재: `72.62.246.21`) |
 | 메일 도메인 | `teamver.online` |
 
 판매자가 메일박스 생성을 원치 않으면 `mail_server.enabled = false`로 설정. 그러면 이메일 local만 사용되고 실제 mail-01에는 아무것도 안 만든다.
+
+### 2.6 판매자에게 되묻기 전 — SECRETS.local.md 먼저 확인
+
+다음 항목은 `SECRETS.local.md`에 이미 있다. 판매자에게 되묻지 말고 파일에서 읽어라:
+- VPS SSH 비밀번호·공개키 (§2.2·§2.1)
+- mail-01 접속 정보 (§3)
+- LLM 공용 API 키 (§4) — 고객 전용 키가 없을 때만
+- GitHub 토큰 (§5) — 커밋·푸시가 필요할 때
+
+판매자에게 **반드시 물어야 하는** 것은 고객별 가변 정보: customer.id, display_name, VPS IP, 3 AI 직원의 이름·직함·슬롯 배정·맞춤 프롬프트, 고객 전용 LLM 키(있으면).
 
 ---
 
