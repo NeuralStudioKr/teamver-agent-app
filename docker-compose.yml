@@ -36,7 +36,7 @@ services:
       # --- 고객사 식별 (DB seed가 사용) ---
       - WORKSPACE_NAME=${WORKSPACE_NAME:-NeuralStudio}
       - WORKSPACE_SLUG=${WORKSPACE_SLUG:-default}
-      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      - BOT_PASSWORD=${BOT_PASSWORD:?BOT_PASSWORD must be set in .env}
       # --- 3 AI 직원 정체성 (DB seed에서 upsert) ---
       - AI_COORDINATOR_NAME=${AI_COORDINATOR_NAME:-이대표}
       - AI_COORDINATOR_EMAIL=${AI_COORDINATOR_EMAIL:-ceo@teamver.ai}
@@ -66,7 +66,7 @@ services:
       - BOT_ID=00000000-0000-0000-0000-000000000001
       - BOT_ROLE=coordinator
       - BOT_EMAIL=${AI_COORDINATOR_EMAIL:-ceo@teamver.ai}
-      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      - BOT_PASSWORD=${BOT_PASSWORD:?BOT_PASSWORD must be set in .env}
       - BOT_NAME=${AI_COORDINATOR_NAME:-이대표}
       - BOT_TITLE=${AI_COORDINATOR_TITLE:-대표}
       - MENTION_TRIGGER=${AI_COORDINATOR_NAME:-이대표}
@@ -85,7 +85,7 @@ services:
       - BOT_ID=00000000-0000-0000-0000-000000000002
       - BOT_ROLE=writer
       - BOT_EMAIL=${AI_WRITER_EMAIL:-director@teamver.ai}
-      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      - BOT_PASSWORD=${BOT_PASSWORD:?BOT_PASSWORD must be set in .env}
       - BOT_NAME=${AI_WRITER_NAME:-한이사}
       - BOT_TITLE=${AI_WRITER_TITLE:-이사}
       - MENTION_TRIGGER=${AI_WRITER_NAME:-한이사}
@@ -104,7 +104,7 @@ services:
       - BOT_ID=00000000-0000-0000-0000-000000000003
       - BOT_ROLE=reviewer
       - BOT_EMAIL=${AI_REVIEWER_EMAIL:-chief@teamver.ai}
-      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      - BOT_PASSWORD=${BOT_PASSWORD:?BOT_PASSWORD must be set in .env}
       - BOT_NAME=${AI_REVIEWER_NAME:-이본부장}
       - BOT_TITLE=${AI_REVIEWER_TITLE:-본부장}
       - MENTION_TRIGGER=${AI_REVIEWER_NAME:-이본부장}

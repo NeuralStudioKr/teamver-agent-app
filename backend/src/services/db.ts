@@ -117,7 +117,10 @@ export async function initDB() {
     const REVIEWER_EMAIL     = process.env.AI_REVIEWER_EMAIL     || 'chief@teamver.ai'
     const REVIEWER_TITLE     = process.env.AI_REVIEWER_TITLE     || '본부장'
 
-    const BOT_PASSWORD_PLAIN = process.env.BOT_PASSWORD          || 'teamver2025!'
+    const BOT_PASSWORD_PLAIN = process.env.BOT_PASSWORD
+    if (!BOT_PASSWORD_PLAIN) {
+      throw new Error('BOT_PASSWORD env required — set in .env (never hardcode)')
+    }
 
     // Seed default workspace — id 고정, name/slug는 env 기반으로 매번 동기화
     await client.query(`
