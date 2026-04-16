@@ -70,6 +70,9 @@ services:
       - BOT_NAME=${AI_COORDINATOR_NAME:-이대표}
       - BOT_TITLE=${AI_COORDINATOR_TITLE:-대표}
       - MENTION_TRIGGER=${AI_COORDINATOR_NAME:-이대표}
+      - TEAM_COORDINATOR_NAME=${AI_COORDINATOR_NAME:-이대표}
+      - TEAM_WRITER_NAME=${AI_WRITER_NAME:-한이사}
+      - TEAM_REVIEWER_NAME=${AI_REVIEWER_NAME:-이본부장}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${AI_COORDINATOR_MODEL:-anthropic/claude-haiku-4-5}
       - BOT_CUSTOM_PROMPT=${AI_COORDINATOR_CUSTOM_PROMPT:-}
@@ -89,6 +92,9 @@ services:
       - BOT_NAME=${AI_WRITER_NAME:-한이사}
       - BOT_TITLE=${AI_WRITER_TITLE:-이사}
       - MENTION_TRIGGER=${AI_WRITER_NAME:-한이사}
+      - TEAM_COORDINATOR_NAME=${AI_COORDINATOR_NAME:-이대표}
+      - TEAM_WRITER_NAME=${AI_WRITER_NAME:-한이사}
+      - TEAM_REVIEWER_NAME=${AI_REVIEWER_NAME:-이본부장}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${AI_WRITER_MODEL:-anthropic/claude-haiku-4-5}
       - BOT_CUSTOM_PROMPT=${AI_WRITER_CUSTOM_PROMPT:-}
@@ -108,6 +114,9 @@ services:
       - BOT_NAME=${AI_REVIEWER_NAME:-이본부장}
       - BOT_TITLE=${AI_REVIEWER_TITLE:-본부장}
       - MENTION_TRIGGER=${AI_REVIEWER_NAME:-이본부장}
+      - TEAM_COORDINATOR_NAME=${AI_COORDINATOR_NAME:-이대표}
+      - TEAM_WRITER_NAME=${AI_WRITER_NAME:-한이사}
+      - TEAM_REVIEWER_NAME=${AI_REVIEWER_NAME:-이본부장}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${AI_REVIEWER_MODEL:-anthropic/claude-haiku-4-5}
       - BOT_CUSTOM_PROMPT=${AI_REVIEWER_CUSTOM_PROMPT:-}

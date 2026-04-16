@@ -22,6 +22,11 @@ const {
   BOT_TITLE = "",         // 직함 (예: 대표, 이사, 본부장)
   MENTION_TRIGGER,
   BOT_CUSTOM_PROMPT = "", // 고객사별 추가 지시(선택)
+  // 팀원 세 명 이름 — 페르소나 파일 속 민팀장/민소장/민이사를 고객사 실제 이름으로 치환하기 위함.
+  // 고객사 배포 시 docker-compose가 AI_*_NAME env에서 주입.
+  TEAM_COORDINATOR_NAME,  // 예: 이상무, 김상무
+  TEAM_WRITER_NAME,       // 예: 이소장, 김과장
+  TEAM_REVIEWER_NAME,     // 예: 이팀장, 김부장
   OPENROUTER_API_KEY,
   OPENROUTER_MODEL = "anthropic/claude-haiku-4-5",
   LLM_TIMEOUT_MS = "20000",
@@ -52,11 +57,14 @@ function loadPersonaFile(name) {
   }
 }
 
+// 페르소나 파일 원문 속 "민팀장/민소장/민이사"를 현재 고객사 팀원 이름으로 치환.
+// env가 비어있으면 치환 안 함 (파일 원문 그대로 남음 — 디버깅용).
 function substituteTeamNames(text) {
-  return text
-    .replaceAll("민팀장", "이상무")
-    .replaceAll("민소장", "이소장")
-    .replaceAll("민이사", "이팀장");
+  let out = text;
+  if (TEAM_COORDINATOR_NAME) out = out.replaceAll("민팀장", TEAM_COORDINATOR_NAME);
+  if (TEAM_WRITER_NAME)      out = out.replaceAll("민소장", TEAM_WRITER_NAME);
+  if (TEAM_REVIEWER_NAME)    out = out.replaceAll("민이사", TEAM_REVIEWER_NAME);
+  return out;
 }
 
 const ROLE_KR = { coordinator: "조율자", writer: "작성자", reviewer: "검토자" };
@@ -70,18 +78,21 @@ const USER_MD   = substituteTeamNames(loadPersonaFile("USER.md"));
 const AGENTS_MD = substituteTeamNames(loadPersonaFile("AGENTS.md"));
 
 function composePersona() {
+  const coordName = TEAM_COORDINATOR_NAME || "조율자";
+  const writerName = TEAM_WRITER_NAME || "작성자";
+  const reviewerName = TEAM_REVIEWER_NAME || "검토자";
   const identity = `# 정체성
 
 - 당신의 이름은 **${BOT_NAME}**${BOT_TITLE ? ` (직함: ${BOT_TITLE})` : ""}입니다.
 - 당신의 역할은 **${ROLE_KR[BOT_ROLE]}**입니다.
 
-## cso 워크스페이스 팀 구성 (슬랙·민 워크스페이스 → cso 이식)
+## 팀 구성 (민 워크스페이스 DNA → 이 팀으로 이식)
 
-- **이상무 (조율자)** ← 민팀장의 PM 원칙: 일정·조율, 코딩 X, 확정권 X, 작성·검수를 동료에게 위임
-- **이소장 (작성자)** ← 민소장의 설계 원칙: 결과물(설계·자료·초안·코드) 만듦, 확정권은 작성자 단독
-- **이팀장 (검토자)** ← 민이사의 정확성 원칙: 결과물·논리 정합성 확인·반박·테스트·승인
+- **${coordName} (조율자)** ← 민팀장의 PM 원칙: 일정·조율, 코딩 X, 확정권 X, 작성·검수를 동료에게 위임
+- **${writerName} (작성자)** ← 민소장의 설계 원칙: 결과물(설계·자료·초안·코드) 만듦, 확정권은 작성자 단독
+- **${reviewerName} (검토자)** ← 민이사의 정확성 원칙: 결과물·논리 정합성 확인·반박·테스트·승인
 
-아래는 당신의 원 페르소나(민 워크스페이스 원문, 팀 이름만 위 매핑대로 치환됨).
+아래는 당신의 원 페르소나(민 워크스페이스 원문, 팀원 이름은 위 매핑대로 치환됨).
 
 ---
 
