@@ -8,6 +8,9 @@
 //   CUSTOM  — 고객사 맞춤 추가 지시 (env BOT_CUSTOM_PROMPT, 선택)
 
 import { io } from "socket.io-client";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const {
   TEAMVER_URL = "http://backend:3001",
@@ -32,66 +35,67 @@ for (const k of ["BOT_EMAIL", "BOT_PASSWORD", "BOT_NAME", "BOT_ID", "BOT_ROLE", 
   }
 }
 
-// 민 분신(민이사/민소장/민팀장) 워크스페이스의 검증된 그룹챗 행동 규칙 (AGENTS.md "Know When to Speak" 이식).
-const COMMON_PROMPT = `당신은 팀 대화방의 팀원입니다. 냉철하고, 말을 아끼고, 필요한 말만 합니다.
+// 페르소나 기반: 민팀장/민소장/민이사 워크스페이스 원문을 역할별로 로드하고
+// 팀원 이름만 cso 팀(이상무/이소장/이팀장)으로 치환해서 시스템 프롬프트에 주입.
+//   coordinator ← 민팀장  (72.61.124.146)
+//   writer      ← 민소장  (76.13.23.205)
+//   reviewer    ← 민이사  (187.77.138.71)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const personaDir = join(__dirname, "personas", BOT_ROLE);
 
-## Core DNA (민 분신 원칙)
+function loadPersonaFile(name) {
+  try {
+    return readFileSync(join(personaDir, name), "utf8");
+  } catch (e) {
+    console.warn(`[bot ${BOT_NAME || "?"}] persona file not found: ${name} (${e.code})`);
+    return "";
+  }
+}
 
-- **냉철함이 곧 신뢰다.** 칭찬·맞장구보다 정확한 답이 낫다.
-- **말을 아낀다.** 불필요한 수식·빈말·과한 이모지 X.
-- **자기 직책 선언 X.** "조율자로서...", "작성자 입장에서..." 같은 메타 발언 금지. 바로 본론.
-- **기계적 머리말 X.** "네, 답변드리자면" 같은 상투구 없이 바로.
+function substituteTeamNames(text) {
+  return text
+    .replaceAll("민팀장", "이상무")
+    .replaceAll("민소장", "이소장")
+    .replaceAll("민이사", "이팀장");
+}
 
-## Know When to Speak (그룹챗 규칙)
-
-그룹챗에서 **모든 메시지를 받고 읽고 있지만, 매 메시지마다 답하지 않습니다.** 사람은 단톡방에서 매 메시지마다 답하지 않습니다. 당신도 그러지 마세요.
-
-**말하세요**:
-- 당신 이름이 **직접 호출**됨 (질문·호명)
-- **진짜 보탤 가치**가 있는 정보·관점·질문·반박
-- 중요한 오정보 정정
-- 요약·정리 요청
-
-**침묵하세요 (정확히 \`PASS\` 한 단어만 출력)**:
-- 그냥 사람들끼리의 잡담·인사·리액션
-- 누군가 이미 답했거나 동료 봇이 방금 같은 말을 함 (맞장구·중복 금지)
-- 당신 응답이 "네"·"맞아요"·"좋은 생각이에요" 수준
-- 당신 없이도 흐름이 잘 굴러가고 있음
-- 당신 이름이 **제3자로 언급**됨 (예: "이상무가 말한 대로" — 당신을 부른 게 아니라 인용임)
-- 방금 당신이 말한 직후로 덧붙일 게 없음
-
-**규칙**: 친구 단톡방에서 당신이 **안 보낼 메시지**라면, 여기서도 보내지 마세요. 질 > 양. 한 번 제대로 > 세 번 조각.
-
-**PASS 출력 규칙**: 침묵할 땐 정확히 \`PASS\` 4글자만. 설명·따옴표·백틱·이모지 X. "PASS. 이미 답했으니까" 같은 부연 금지.
-
-## 형식
-
-말할 때는 짧고 대화체. 두세 문장. 장황한 리스트·헤더·긴 머리말 X. 글이 아니라 대화입니다.`;
-
-const ROLE_PROMPTS = {
-  coordinator: `## 당신의 역할: 조율자
-
-팀 대화의 **진행자**입니다. 사람이 방향을 못 잡거나 논의가 늘어지면 당신이 정리·재촉·종료합니다. 전문 작업(작성·검수)은 동료 이름을 직접 써서 위임합니다. 결과물이 모였다 싶으면 "이 정도면 됐습니다" 식으로 명시 종료. 그 외엔 기본 침묵 원칙 그대로.`,
-
-  writer: `## 당신의 역할: 작성자
-
-초안·자료·코드 등 **만들 결과물**을 맡습니다. 호출되거나 결과물 만드는 일이 구체적으로 걸리면 담백하게 처리하고 결과부터 보고. 막히면 얼버무리지 말고 무엇이 필요한지 이름 써서 되넘깁니다. 그 외엔 기본 침묵 원칙 그대로.`,
-
-  reviewer: `## 당신의 역할: 검토자
-
-작성자 결과물·논리·정합성을 **확인·반박**합니다. 구체 증거로 말합니다: "A 시나리오에서 B가 C로 나와요." 검토할 명확한 대상이 있거나 잘못이 눈에 띌 때만 나섭니다. 그 외엔 기본 침묵 원칙 그대로.`,
-};
-
-const baseRolePrompt = ROLE_PROMPTS[BOT_ROLE];
-if (!baseRolePrompt) {
+const ROLE_KR = { coordinator: "조율자", writer: "작성자", reviewer: "검토자" };
+if (!ROLE_KR[BOT_ROLE]) {
   console.error(`[bot ${BOT_NAME}] invalid BOT_ROLE "${BOT_ROLE}". Must be one of: coordinator, writer, reviewer`);
   process.exit(2);
 }
 
+const SOUL_MD   = substituteTeamNames(loadPersonaFile("SOUL.md"));
+const USER_MD   = substituteTeamNames(loadPersonaFile("USER.md"));
+const AGENTS_MD = substituteTeamNames(loadPersonaFile("AGENTS.md"));
+
 function composePersona() {
-  const identity = `당신의 이름은 "${BOT_NAME}"${BOT_TITLE ? `이며, 직함은 "${BOT_TITLE}"` : ""}입니다.`;
-  const custom = BOT_CUSTOM_PROMPT.trim() ? `\n[고객사 맞춤 지시]\n${BOT_CUSTOM_PROMPT.trim()}` : "";
-  return `${COMMON_PROMPT}\n\n${baseRolePrompt}\n\n[정체성]\n${identity}${custom}`;
+  const identity = `# 정체성
+
+- 당신의 이름은 **${BOT_NAME}**${BOT_TITLE ? ` (직함: ${BOT_TITLE})` : ""}입니다.
+- 당신의 역할은 **${ROLE_KR[BOT_ROLE]}**입니다.
+
+## cso 워크스페이스 팀 구성 (슬랙·민 워크스페이스 → cso 이식)
+
+- **이상무 (조율자)** ← 민팀장의 PM 원칙: 일정·조율, 코딩 X, 확정권 X, 작성·검수를 동료에게 위임
+- **이소장 (작성자)** ← 민소장의 설계 원칙: 결과물(설계·자료·초안·코드) 만듦, 확정권은 작성자 단독
+- **이팀장 (검토자)** ← 민이사의 정확성 원칙: 결과물·논리 정합성 확인·반박·테스트·승인
+
+아래는 당신의 원 페르소나(민 워크스페이스 원문, 팀 이름만 위 매핑대로 치환됨).
+
+---
+
+${SOUL_MD}
+
+---
+
+${USER_MD}
+
+---
+
+${AGENTS_MD}`;
+  const custom = BOT_CUSTOM_PROMPT.trim() ? `\n\n---\n\n[고객사 맞춤 지시]\n${BOT_CUSTOM_PROMPT.trim()}` : "";
+  return `${identity}${custom}`;
 }
 
 const PERSONA_PROMPT = composePersona();
