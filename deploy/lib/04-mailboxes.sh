@@ -32,8 +32,8 @@ ensure_mailbox() {
   local local_part="$1"
   local addr="${local_part}@${MAIL_DOMAIN}"
 
-  # 이미 있으면 skip (비밀번호는 기존 값이 json에 있어야 함, 없으면 경고만)
-  if ssh "${MAIL_USER}@${MAIL_HOST}" \
+  # 이미 있으면 skip (-n: ssh가 stdin을 소비해 while 루프를 끊는 것 방지)
+  if ssh -n "${MAIL_USER}@${MAIL_HOST}" \
        "docker exec mailserver setup email list 2>/dev/null | grep -q \"$addr\""; then
     echo "  $addr 이미 존재 — skip 생성"
     if ! jq -e --arg a "$addr" '.[$a]' "$PW_FILE" >/dev/null 2>&1; then
@@ -45,7 +45,7 @@ ensure_mailbox() {
   local pw
   pw=$(openssl rand -base64 18 | tr -d '\n/+=')
   echo "  $addr 신규 생성"
-  ssh "${MAIL_USER}@${MAIL_HOST}" \
+  ssh -n "${MAIL_USER}@${MAIL_HOST}" \
       "docker exec mailserver setup email add '$addr' '$pw'" >/dev/null
   jq --arg a "$addr" --arg p "$pw" '. + {($a): $p}' "$PW_FILE" > "${PW_FILE}.new"
   mv "${PW_FILE}.new" "$PW_FILE"

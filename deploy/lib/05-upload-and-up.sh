@@ -20,10 +20,10 @@ rsync -az --delete \
   --exclude='.env' \
   --exclude='.next' \
   --exclude='dist' \
-  --exclude='*-test.mjs' \
-  --exclude='package.json' \
-  --exclude='package-lock.json' \
-  --exclude='deploy/staging' \
+  --exclude='/*-test.mjs' \
+  --exclude='/package.json' \
+  --exclude='/package-lock.json' \
+  --exclude='/deploy/staging' \
   "${REPO_ROOT}/" \
   "${VPS_USER}@${VPS_IP}:${REMOTE_DIR}/"
 

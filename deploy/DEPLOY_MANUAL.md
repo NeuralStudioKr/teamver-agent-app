@@ -289,11 +289,40 @@ apt 저장소가 어쩌다 일시 다운됐을 수 있음. 1~2분 후 재시도.
 ## 12. 다음 버전에서 추가될 것
 
 - Caddy 리버스 프록시 + 자동 TLS
-- 도메인 기반 라우팅 (`<customer>.teamver.app`)
+- Porkbun API로 DNS A 레코드 자동 생성 (현재 수동: `SECRETS.local.md §3.3` 참조해서 curl)
 - Shadow 에이전트 자동 기동 (감시·Slack ops)
 - 백업 자동화 (일일 pg_dump)
 - 롤링 업데이트 스크립트
+- `hostnamectl set-hostname <intended>` 자동 설정 (포맷 직후 VPS는 `srv1588xxx`로 초기화됨)
 
 ---
 
-*이 매뉴얼 v1.0. 배포 스크립트 변경 시 이 문서도 함께 갱신.*
+## 13. 실전 배포 이력
+
+### cso (v1.0, 2026-04-16)
+
+첫 실전 배포. `cso.teamver.online` → `72.61.124.110`. 이상무/이소장/이팀장 3 AI. 발견·수정된 이슈:
+
+1. **02-remote-prep**: template 1121(Docker pre-installed) VPS에서 `apt install docker.io` 가 기존 `docker-ce`와 충돌. → `command -v docker` 로 체크 후 조건부 설치로 수정.
+2. **04-mailboxes**: `while read < <<"$LOCALS"` 루프 안의 `ssh`가 stdin을 소비해 2·3번째 메일박스 미생성. → `ssh -n` 으로 stdin 분리.
+3. **05-upload-and-up**: `rsync --exclude='package.json'` 이 모든 하위 package.json까지 제외해 openclaw-bot 빌드 실패. → `--exclude='/package.json'` 루트 한정.
+
+세 버그 모두 수정 후 재실행하면 모든 스텝 멱등 통과. E2E 멘션 응답 확인.
+
+### DNS 수동 절차 (v1.0 임시)
+
+deploy.sh 실행 **전**에 판매자가 Porkbun API로 A 레코드 생성:
+```bash
+PORKBUN_KEY="..."    # SECRETS.local.md §3.3
+PORKBUN_SEC="..."
+curl -X POST https://api.porkbun.com/api/json/v3/dns/create/teamver.online \
+  -H "Content-Type: application/json" \
+  -d '{"apikey":"'$PORKBUN_KEY'","secretapikey":"'$PORKBUN_SEC'","name":"<subdomain>","type":"A","content":"<VPS_IP>","ttl":"600"}'
+```
+전파 확인: `dig +short A <subdomain>.teamver.online @1.1.1.1` — 통상 5초 이내.
+
+(v1.1에서 `deploy/lib/00-dns.sh` 로 자동화 예정)
+
+---
+
+*이 매뉴얼 v1.0 + 2026-04-16 배포 후 수정. 배포 스크립트 변경 시 이 문서도 함께 갱신.*
