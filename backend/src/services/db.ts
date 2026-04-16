@@ -101,24 +101,51 @@ export async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_drive_files_workspace ON drive_files(workspace_id, updated_at DESC);
     `)
 
-    // Seed default workspace
-    const wsResult = await client.query(`
+    // === 고객사별 설정 (env로 주입, 없으면 개발 기본값) ===
+    const WS_NAME = process.env.WORKSPACE_NAME || 'NeuralStudio'
+    const WS_SLUG = (process.env.WORKSPACE_SLUG || 'default').toLowerCase()
+
+    const COORDINATOR_NAME   = process.env.AI_COORDINATOR_NAME   || '이대표'
+    const COORDINATOR_EMAIL  = process.env.AI_COORDINATOR_EMAIL  || 'ceo@teamver.ai'
+    const COORDINATOR_TITLE  = process.env.AI_COORDINATOR_TITLE  || '대표'
+
+    const WRITER_NAME        = process.env.AI_WRITER_NAME        || '한이사'
+    const WRITER_EMAIL       = process.env.AI_WRITER_EMAIL       || 'director@teamver.ai'
+    const WRITER_TITLE       = process.env.AI_WRITER_TITLE       || '이사'
+
+    const REVIEWER_NAME      = process.env.AI_REVIEWER_NAME      || '이본부장'
+    const REVIEWER_EMAIL     = process.env.AI_REVIEWER_EMAIL     || 'chief@teamver.ai'
+    const REVIEWER_TITLE     = process.env.AI_REVIEWER_TITLE     || '본부장'
+
+    const BOT_PASSWORD_PLAIN = process.env.BOT_PASSWORD          || 'teamver2025!'
+
+    // Seed default workspace — id 고정, name/slug는 env 기반으로 매번 동기화
+    await client.query(`
       INSERT INTO workspaces (id, name, slug) VALUES
-        ('00000000-0000-0000-0000-000000000000', 'NeuralStudio', 'neuralstudio')
-      ON CONFLICT (slug) DO NOTHING RETURNING id
-    `)
+        ('00000000-0000-0000-0000-000000000000', $1, $2)
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, slug = EXCLUDED.slug
+    `, [WS_NAME, WS_SLUG])
 
     const wsId = '00000000-0000-0000-0000-000000000000'
 
-    // Seed AI employees (with password so OpenClaw agents can log in)
-    const botPassword = await bcrypt.hash('teamver2025!', 10)
+    // Seed AI employees — id는 슬롯별 고정, 나머지 필드는 env 기반 동기화
+    const botPassword = await bcrypt.hash(BOT_PASSWORD_PLAIN, 10)
     await client.query(`
       INSERT INTO users (id, workspace_id, name, email, password_hash, role, is_bot) VALUES
-        ('00000000-0000-0000-0000-000000000001', $1, '이대표', 'ceo@teamver.ai', $2, '대표', true),
-        ('00000000-0000-0000-0000-000000000002', $1, '한이사', 'director@teamver.ai', $2, '이사', true),
-        ('00000000-0000-0000-0000-000000000003', $1, '이본부장', 'chief@teamver.ai', $2, '본부장', true)
-      ON CONFLICT (workspace_id, email) DO UPDATE SET password_hash=$2
-    `, [wsId, botPassword])
+        ('00000000-0000-0000-0000-000000000001', $1, $3, $4,  $2, $5,  true),
+        ('00000000-0000-0000-0000-000000000002', $1, $6, $7,  $2, $8,  true),
+        ('00000000-0000-0000-0000-000000000003', $1, $9, $10, $2, $11, true)
+      ON CONFLICT (id) DO UPDATE SET
+        name          = EXCLUDED.name,
+        email         = EXCLUDED.email,
+        password_hash = EXCLUDED.password_hash,
+        role          = EXCLUDED.role
+    `, [
+      wsId, botPassword,
+      COORDINATOR_NAME, COORDINATOR_EMAIL, COORDINATOR_TITLE,
+      WRITER_NAME,      WRITER_EMAIL,      WRITER_TITLE,
+      REVIEWER_NAME,    REVIEWER_EMAIL,    REVIEWER_TITLE,
+    ])
 
     // Seed channels — workspace_id+name 기준으로 중복 방지
     await client.query(`
@@ -132,7 +159,7 @@ export async function initDB() {
       WHERE NOT EXISTS (SELECT 1 FROM channels WHERE workspace_id=$1 AND name='개발')
     `, [wsId])
 
-    console.log('✅ Database initialized')
+    console.log(`✅ Database initialized — workspace="${WS_NAME}" bots=[${COORDINATOR_NAME}, ${WRITER_NAME}, ${REVIEWER_NAME}]`)
   } finally {
     client.release()
   }

@@ -34,3 +34,8 @@ yarn-error.log*
 # Uploads (runtime)
 uploads/
 /tmp/
+
+# Deploy artifacts per customer (시크릿 포함)
+/deploy/staging/
+/deploy/customers/
+*.customer.json

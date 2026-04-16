@@ -27,12 +27,26 @@ services:
     environment:
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - DATABASE_URL=postgresql://teamver:${POSTGRES_PASSWORD:-ta_dev_password}@postgres:5432/teamver_agent
       - AI_RESPONSE_TIMEOUT_MS=${AI_RESPONSE_TIMEOUT_MS:-10000}
-      - AI_RANDOM_RESPONSE_CHANCE=${AI_RANDOM_RESPONSE_CHANCE:-0.2}
+      - AI_RANDOM_RESPONSE_CHANCE=${AI_RANDOM_RESPONSE_CHANCE:-0}
       - EXTERNAL_BOTS_ENABLED=${EXTERNAL_BOTS_ENABLED:-true}
+      # --- 고객사 식별 (DB seed가 사용) ---
+      - WORKSPACE_NAME=${WORKSPACE_NAME:-NeuralStudio}
+      - WORKSPACE_SLUG=${WORKSPACE_SLUG:-default}
+      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      # --- 3 AI 직원 정체성 (DB seed에서 upsert) ---
+      - AI_COORDINATOR_NAME=${AI_COORDINATOR_NAME:-이대표}
+      - AI_COORDINATOR_EMAIL=${AI_COORDINATOR_EMAIL:-ceo@teamver.ai}
+      - AI_COORDINATOR_TITLE=${AI_COORDINATOR_TITLE:-대표}
+      - AI_WRITER_NAME=${AI_WRITER_NAME:-한이사}
+      - AI_WRITER_EMAIL=${AI_WRITER_EMAIL:-director@teamver.ai}
+      - AI_WRITER_TITLE=${AI_WRITER_TITLE:-이사}
+      - AI_REVIEWER_NAME=${AI_REVIEWER_NAME:-이본부장}
+      - AI_REVIEWER_EMAIL=${AI_REVIEWER_EMAIL:-chief@teamver.ai}
+      - AI_REVIEWER_TITLE=${AI_REVIEWER_TITLE:-본부장}
       - SLACK_BRIDGE_TOKEN=${SLACK_BRIDGE_TOKEN:-}
       - SLACK_BRIDGE_CHANNEL_ID=${SLACK_BRIDGE_CHANNEL_ID:-}
     depends_on:
@@ -40,53 +54,63 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  ai-ceo:
-    build: ../openclaw-bot
-    container_name: ta-ai-ceo
+  # === AI 직원 3명 ===
+  # 슬롯: coordinator(조율자) / writer(작성자) / reviewer(검수자)
+  # 각 슬롯 UUID는 고정. 사람-정체성(이름·직함·이메일)·모델·맞춤 프롬프트는 .env로 주입.
+
+  ai-coordinator:
+    build: ./openclaw-bot
+    container_name: ta-ai-coordinator
     environment:
       - TEAMVER_URL=http://backend:3001
       - BOT_ID=00000000-0000-0000-0000-000000000001
-      - BOT_EMAIL=ceo@teamver.ai
-      - BOT_PASSWORD=teamver2025!
-      - BOT_NAME=이대표
-      - MENTION_TRIGGER=이대표
+      - BOT_ROLE=coordinator
+      - BOT_EMAIL=${AI_COORDINATOR_EMAIL:-ceo@teamver.ai}
+      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      - BOT_NAME=${AI_COORDINATOR_NAME:-이대표}
+      - BOT_TITLE=${AI_COORDINATOR_TITLE:-대표}
+      - MENTION_TRIGGER=${AI_COORDINATOR_NAME:-이대표}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=anthropic/claude-haiku-4-5
-      - PERSONA_PROMPT=당신은 이대표 - 회사의 CEO/대표 AI 직원입니다. 경영 전략·조직 방향성·최종 의사결정 관점으로 답변합니다. 격식체를 사용하되 따뜻하게. 결론을 먼저 말하는 경영자 스타일. 답변은 6문장 이내로 간결하게.
+      - OPENROUTER_MODEL=${AI_COORDINATOR_MODEL:-anthropic/claude-haiku-4-5}
+      - BOT_CUSTOM_PROMPT=${AI_COORDINATOR_CUSTOM_PROMPT:-}
     depends_on:
       - backend
     restart: unless-stopped
 
-  ai-director:
-    build: ../openclaw-bot
-    container_name: ta-ai-director
+  ai-writer:
+    build: ./openclaw-bot
+    container_name: ta-ai-writer
     environment:
       - TEAMVER_URL=http://backend:3001
       - BOT_ID=00000000-0000-0000-0000-000000000002
-      - BOT_EMAIL=director@teamver.ai
-      - BOT_PASSWORD=teamver2025!
-      - BOT_NAME=한이사
-      - MENTION_TRIGGER=한이사
+      - BOT_ROLE=writer
+      - BOT_EMAIL=${AI_WRITER_EMAIL:-director@teamver.ai}
+      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      - BOT_NAME=${AI_WRITER_NAME:-한이사}
+      - BOT_TITLE=${AI_WRITER_TITLE:-이사}
+      - MENTION_TRIGGER=${AI_WRITER_NAME:-한이사}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=anthropic/claude-haiku-4-5
-      - PERSONA_PROMPT=당신은 한이사 - 회사의 이사/CTO급 AI 직원입니다. 기술·아키텍처·시스템 설계 관점에서 답변합니다. 정확하고 논리적이며 근거를 명확히 제시합니다. 답변은 6문장 이내로 간결하게.
+      - OPENROUTER_MODEL=${AI_WRITER_MODEL:-anthropic/claude-haiku-4-5}
+      - BOT_CUSTOM_PROMPT=${AI_WRITER_CUSTOM_PROMPT:-}
     depends_on:
       - backend
     restart: unless-stopped
 
-  ai-chief:
-    build: ../openclaw-bot
-    container_name: ta-ai-chief
+  ai-reviewer:
+    build: ./openclaw-bot
+    container_name: ta-ai-reviewer
     environment:
       - TEAMVER_URL=http://backend:3001
       - BOT_ID=00000000-0000-0000-0000-000000000003
-      - BOT_EMAIL=chief@teamver.ai
-      - BOT_PASSWORD=teamver2025!
-      - BOT_NAME=이본부장
-      - MENTION_TRIGGER=이본부장
+      - BOT_ROLE=reviewer
+      - BOT_EMAIL=${AI_REVIEWER_EMAIL:-chief@teamver.ai}
+      - BOT_PASSWORD=${BOT_PASSWORD:-teamver2025!}
+      - BOT_NAME=${AI_REVIEWER_NAME:-이본부장}
+      - BOT_TITLE=${AI_REVIEWER_TITLE:-본부장}
+      - MENTION_TRIGGER=${AI_REVIEWER_NAME:-이본부장}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=anthropic/claude-haiku-4-5
-      - PERSONA_PROMPT=당신은 이본부장 - 회사의 본부장/실무 총괄 AI 직원입니다. 실무 실행·팀 조율·일정 관리 관점에서 답변합니다. 간결하고 실용적이며 다음 액션을 명확히 제시합니다. 답변은 6문장 이내로 간결하게.
+      - OPENROUTER_MODEL=${AI_REVIEWER_MODEL:-anthropic/claude-haiku-4-5}
+      - BOT_CUSTOM_PROMPT=${AI_REVIEWER_CUSTOM_PROMPT:-}
     depends_on:
       - backend
     restart: unless-stopped

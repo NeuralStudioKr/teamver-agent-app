@@ -1,0 +1,56 @@
+{
+  "_comment": "이 파일은 고객사 1개를 VPS에 배포하기 위해 필요한 모든 입력값의 스키마다. 실제 값으로 채운 뒤 deploy.sh에 경로로 넘긴다. 민감값 포함 — git에 커밋하지 말 것.",
+
+  "customer": {
+    "id": "acme",
+    "display_name": "Acme Corp",
+    "slug": "acme"
+  },
+
+  "vps": {
+    "ip": "REQUIRED-put-ipv4-here",
+    "ssh_user": "root",
+    "ssh_port": 22
+  },
+
+  "ai_employees": {
+    "coordinator": {
+      "name": "김상무",
+      "title": "상무",
+      "email_local": "acme-kim-coordinator",
+      "model": "anthropic/claude-haiku-4-5",
+      "custom_prompt": ""
+    },
+    "writer": {
+      "name": "김부장",
+      "title": "부장",
+      "email_local": "acme-kim-writer",
+      "model": "anthropic/claude-haiku-4-5",
+      "custom_prompt": ""
+    },
+    "reviewer": {
+      "name": "김과장",
+      "title": "과장",
+      "email_local": "acme-kim-reviewer",
+      "model": "anthropic/claude-haiku-4-5",
+      "custom_prompt": ""
+    }
+  },
+
+  "secrets": {
+    "openrouter_api_key": "REQUIRED-sk-or-v1-...",
+    "anthropic_api_key": ""
+  },
+
+  "mail_server": {
+    "enabled": true,
+    "host": "72.62.246.21",
+    "ssh_user": "root",
+    "domain": "teamver.online"
+  },
+
+  "ports": {
+    "frontend": 3100,
+    "backend": 3101
+  }
+}
