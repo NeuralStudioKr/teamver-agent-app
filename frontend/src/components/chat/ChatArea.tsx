@@ -36,6 +36,41 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
   const typingTimerRef = useRef<any>(null)
   const dragCounterRef = useRef(0)
 
+  // Thread panel resize
+  const THREAD_MIN = 280
+  const THREAD_MAX = 600
+  const THREAD_DEFAULT = 320
+  const [threadWidth, setThreadWidth] = useState(THREAD_DEFAULT)
+  const threadResizingRef = useRef(false)
+
+  useEffect(() => {
+    const stored = Number(localStorage.getItem('ta_thread_width'))
+    if (stored >= THREAD_MIN && stored <= THREAD_MAX) setThreadWidth(stored)
+  }, [])
+
+  const onThreadResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    threadResizingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    const containerRight = (e.target as HTMLElement).parentElement?.getBoundingClientRect().right ?? window.innerWidth
+    const onMove = (ev: MouseEvent) => {
+      if (!threadResizingRef.current) return
+      const next = Math.max(THREAD_MIN, Math.min(THREAD_MAX, containerRight - ev.clientX))
+      setThreadWidth(next)
+    }
+    const onUp = () => {
+      threadResizingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      setThreadWidth(w => { try { localStorage.setItem('ta_thread_width', String(w)) } catch {} return w })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [])
+
   const loadMessages = useCallback(async () => {
     if (!channelId) return
     setLoading(true)
@@ -369,15 +404,26 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
       </div>
 
       {activeThread && (
-        <ThreadPanel
-          thread={activeThread}
-          currentUser={currentUser}
-          apiBase={apiBase}
-          onClose={() => setActiveThread(null)}
-          onReply={sendThreadReply}
-          socket={socket}
-          channelId={channelId}
-        />
+        <>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onMouseDown={onThreadResizeStart}
+            onDoubleClick={() => { setThreadWidth(THREAD_DEFAULT); try { localStorage.setItem('ta_thread_width', String(THREAD_DEFAULT)) } catch {} }}
+            title="드래그해서 너비 조절 · 더블클릭으로 기본값"
+            className="w-1 flex-shrink-0 cursor-col-resize bg-border hover:bg-primary/60 active:bg-primary transition-colors"
+          />
+          <ThreadPanel
+            thread={activeThread}
+            currentUser={currentUser}
+            apiBase={apiBase}
+            onClose={() => setActiveThread(null)}
+            onReply={sendThreadReply}
+            socket={socket}
+            channelId={channelId}
+            width={threadWidth}
+          />
+        </>
       )}
     </div>
   )

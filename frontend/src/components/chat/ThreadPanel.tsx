@@ -12,9 +12,10 @@ interface Props {
   onReply: (content: string) => void
   socket: any
   channelId: string
+  width?: number
 }
 
-export default function ThreadPanel({ thread, currentUser, apiBase, onClose, onReply, socket, channelId }: Props) {
+export default function ThreadPanel({ thread, currentUser, apiBase, onClose, onReply, socket, channelId, width }: Props) {
   const [replies, setReplies] = useState<any[]>(thread.replies || [])
   const [text, setText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -37,7 +38,7 @@ export default function ThreadPanel({ thread, currentUser, apiBase, onClose, onR
   }
 
   return (
-    <div className="w-80 flex-shrink-0 border-l border-border flex flex-col h-full">
+    <div className="flex-shrink-0 border-l border-border flex flex-col h-full" style={{ width: width || 320 }}>
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <span className="font-semibold text-sm">스레드</span>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded"><X size={16} /></button>
