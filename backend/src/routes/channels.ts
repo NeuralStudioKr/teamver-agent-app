@@ -120,6 +120,31 @@ export async function channelRoutes(app: FastifyInstance) {
     return { ok: true }
   })
 
+  // 메시지 수정
+  app.patch('/channels/:channelId/messages/:messageId', { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { channelId, messageId } = req.params as any
+    const { content } = req.body as any
+    const { id: userId, workspaceId } = (req as any).user
+    const trimmed = typeof content === 'string' ? content.trim() : ''
+    if (!trimmed) return reply.status(400).send({ error: '내용 필요' })
+    const updated = await store.updateMessage(messageId, userId, trimmed)
+    if (!updated) return reply.status(404).send({ error: '메시지를 찾을 수 없거나 수정 권한 없음' })
+    const io = (app as any).io
+    if (io) io.to(`ws:${workspaceId}`).emit('message_updated', updated)
+    return updated
+  })
+
+  // 메시지 삭제
+  app.delete('/channels/:channelId/messages/:messageId', { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { channelId, messageId } = req.params as any
+    const { id: userId, workspaceId } = (req as any).user
+    const ok = await store.deleteMessage(messageId, userId)
+    if (!ok) return reply.status(404).send({ error: '메시지를 찾을 수 없거나 삭제 권한 없음' })
+    const io = (app as any).io
+    if (io) io.to(`ws:${workspaceId}`).emit('message_deleted', { messageId, channelId })
+    return { ok: true }
+  })
+
   // Thread
   app.get('/messages/:messageId/replies', { onRequest: [app.authenticate] }, async (req) => {
     const { messageId } = req.params as any

@@ -153,6 +153,22 @@ class Store {
     return rows[0] ? this.toMessage(rows[0]) : undefined
   }
 
+  async updateMessage(messageId: string, senderId: string, content: string): Promise<Message | null> {
+    const { rows } = await pool.query(
+      `UPDATE messages SET content=$1 WHERE id=$2 AND sender_id=$3 RETURNING *`,
+      [content, messageId, senderId]
+    )
+    return rows[0] ? this.toMessage(rows[0]) : null
+  }
+
+  async deleteMessage(messageId: string, senderId: string): Promise<boolean> {
+    const { rowCount } = await pool.query(
+      `DELETE FROM messages WHERE id=$1 AND sender_id=$2`,
+      [messageId, senderId]
+    )
+    return (rowCount ?? 0) > 0
+  }
+
   // === Reactions ===
   async addReaction(messageId: string, emoji: string, userId: string): Promise<Message> {
     const msg = await this.getMessageById(messageId)

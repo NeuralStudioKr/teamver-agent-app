@@ -24,6 +24,9 @@ services:
     container_name: ta-backend
     ports:
       - '3101:3001'
+    volumes:
+      - uploads_data:/tmp/uploads
+      - drive_data:/tmp/drive
     environment:
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET}
@@ -139,6 +142,10 @@ services:
 volumes:
   postgres_data:
     name: ta-postgres-data
+  uploads_data:
+    name: ta-uploads-data
+  drive_data:
+    name: ta-drive-data
 
 networks:
   default:

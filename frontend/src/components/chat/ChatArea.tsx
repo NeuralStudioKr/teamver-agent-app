@@ -76,12 +76,20 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
     const onReaction = (msg: any) => {
       if (msg.channelId === channelId) setMessages(prev => prev.map(m => m.id === msg.id ? msg : m))
     }
+    const onMsgUpdated = (msg: any) => {
+      if (msg.channelId === channelId) setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m))
+    }
+    const onMsgDeleted = ({ messageId }: { messageId: string }) => {
+      setMessages(prev => prev.filter(m => m.id !== messageId))
+    }
     socket.on('new_message', onMessage)
     socket.on('thread_reply', onThreadReply)
     socket.on('ai_thinking', onThinking)
     socket.on('ai_done_thinking', onDoneThinking)
     socket.on('user_typing', onTyping)
     socket.on('reaction_updated', onReaction)
+    socket.on('message_updated', onMsgUpdated)
+    socket.on('message_deleted', onMsgDeleted)
     return () => {
       socket.off('new_message', onMessage)
       socket.off('thread_reply', onThreadReply)
@@ -89,6 +97,8 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
       socket.off('ai_done_thinking', onDoneThinking)
       socket.off('user_typing', onTyping)
       socket.off('reaction_updated', onReaction)
+      socket.off('message_updated', onMsgUpdated)
+      socket.off('message_deleted', onMsgDeleted)
     }
   }, [socket, channelId, activeThread, currentUser])
 
@@ -185,6 +195,20 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
     try {
       const updated = await api.addReaction(messageId, emoji)
       setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: updated.reactions } : m))
+    } catch {}
+  }
+
+  const editMessage = async (messageId: string, content: string) => {
+    try {
+      const updated = await api.updateMessage(channelId, messageId, content)
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, ...updated } : m))
+    } catch {}
+  }
+
+  const deleteMessage = async (messageId: string) => {
+    try {
+      await api.deleteMessage(channelId, messageId)
+      setMessages(prev => prev.filter(m => m.id !== messageId))
     } catch {}
   }
 
@@ -286,6 +310,8 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
               apiBase={apiBase}
               onThread={() => openThread(msg)}
               onReaction={(emoji) => addReaction(msg.id, emoji)}
+              onEdit={editMessage}
+              onDelete={deleteMessage}
               emojiList={EMOJI_LIST}
             />
           ))}

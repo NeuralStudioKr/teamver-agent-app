@@ -57,6 +57,11 @@ export const api = {
     request<any>(`/channels/${channelId}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),
   getMembers: () => request<any[]>('/members'),
 
+  updateMessage: (channelId: string, messageId: string, content: string) =>
+    request<any>(`/channels/${channelId}/messages/${messageId}`, { method: 'PATCH', body: JSON.stringify({ content }) }),
+  deleteMessage: (channelId: string, messageId: string) =>
+    request<any>(`/channels/${channelId}/messages/${messageId}`, { method: 'DELETE' }),
+
   getThreadReplies: (messageId: string) => request<any[]>(`/messages/${messageId}/replies`),
   addReaction: (messageId: string, emoji: string) =>
     request<any>(`/messages/${messageId}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) }),
