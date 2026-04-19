@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { MessageSquare, Smile, Pencil, Trash2, X, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { renderWithDriveLinks } from './DriveLinks'
 
 interface Props {
   message: any
@@ -89,7 +90,7 @@ export default function MessageItem({ message: msg, currentUserId, apiBase, onTh
           </div>
         ) : (
           <>
-            {msg.content && <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{msg.content}</p>}
+            {msg.content && <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{renderWithDriveLinks(msg.content)}</p>}
           </>
         )}
 

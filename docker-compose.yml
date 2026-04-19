@@ -77,7 +77,7 @@ services:
       - TEAM_WRITER_NAME=${AI_WRITER_NAME:-한이사}
       - TEAM_REVIEWER_NAME=${AI_REVIEWER_NAME:-이본부장}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=${AI_COORDINATOR_MODEL:-anthropic/claude-haiku-4-5}
+      - OPENROUTER_MODEL=${AI_COORDINATOR_MODEL:-xiaomi/mimo-v2-omni}
       - BOT_CUSTOM_PROMPT=${AI_COORDINATOR_CUSTOM_PROMPT:-}
     depends_on:
       - backend
@@ -99,7 +99,7 @@ services:
       - TEAM_WRITER_NAME=${AI_WRITER_NAME:-한이사}
       - TEAM_REVIEWER_NAME=${AI_REVIEWER_NAME:-이본부장}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=${AI_WRITER_MODEL:-anthropic/claude-haiku-4-5}
+      - OPENROUTER_MODEL=${AI_WRITER_MODEL:-xiaomi/mimo-v2-omni}
       - BOT_CUSTOM_PROMPT=${AI_WRITER_CUSTOM_PROMPT:-}
     depends_on:
       - backend
@@ -121,7 +121,7 @@ services:
       - TEAM_WRITER_NAME=${AI_WRITER_NAME:-한이사}
       - TEAM_REVIEWER_NAME=${AI_REVIEWER_NAME:-이본부장}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=${AI_REVIEWER_MODEL:-anthropic/claude-haiku-4-5}
+      - OPENROUTER_MODEL=${AI_REVIEWER_MODEL:-xiaomi/mimo-v2-omni}
       - BOT_CUSTOM_PROMPT=${AI_REVIEWER_CUSTOM_PROMPT:-}
     depends_on:
       - backend

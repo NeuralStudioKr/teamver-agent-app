@@ -28,7 +28,7 @@ const {
   TEAM_WRITER_NAME,       // 예: 이소장, 김과장
   TEAM_REVIEWER_NAME,     // 예: 이팀장, 김부장
   OPENROUTER_API_KEY,
-  OPENROUTER_MODEL = "anthropic/claude-haiku-4-5",
+  OPENROUTER_MODEL = "xiaomi/mimo-v2-omni",
   LLM_TIMEOUT_MS = "20000",
   REPLY_MAX_TOKENS = "500",
 } = process.env;

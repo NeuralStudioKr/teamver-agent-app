@@ -82,9 +82,25 @@ export async function initDB() {
 
       CREATE INDEX IF NOT EXISTS idx_dm_messages_users ON dm_messages(from_user_id, to_user_id, created_at DESC);
 
+      CREATE TABLE IF NOT EXISTS drive_folders (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+        parent_id UUID REFERENCES drive_folders(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        path TEXT NOT NULL,
+        created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_by_name VARCHAR(100) NOT NULL DEFAULT '알 수 없음',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_drive_folders_workspace ON drive_folders(workspace_id, path);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_drive_folders_sibling_name
+        ON drive_folders(workspace_id, COALESCE(parent_id::text, ''), name);
+
       CREATE TABLE IF NOT EXISTS drive_files (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+        folder_id UUID REFERENCES drive_folders(id) ON DELETE SET NULL,
         name VARCHAR(255) NOT NULL,
         mime_type VARCHAR(100) DEFAULT 'text/markdown',
         size INT DEFAULT 0,
@@ -97,8 +113,9 @@ export async function initDB() {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
-
+      ALTER TABLE drive_files ADD COLUMN IF NOT EXISTS folder_id UUID REFERENCES drive_folders(id) ON DELETE SET NULL;
       CREATE INDEX IF NOT EXISTS idx_drive_files_workspace ON drive_files(workspace_id, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_drive_files_folder ON drive_files(folder_id);
     `)
 
     // === 고객사별 설정 (env로 주입, 없으면 개발 기본값) ===

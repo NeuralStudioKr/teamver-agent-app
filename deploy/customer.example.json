@@ -18,21 +18,21 @@
       "name": "김상무",
       "title": "상무",
       "email_local": "acme-kim-coordinator",
-      "model": "anthropic/claude-haiku-4-5",
+      "model": "xiaomi/mimo-v2-omni",
       "custom_prompt": ""
     },
     "writer": {
       "name": "김부장",
       "title": "부장",
       "email_local": "acme-kim-writer",
-      "model": "anthropic/claude-haiku-4-5",
+      "model": "xiaomi/mimo-v2-omni",
       "custom_prompt": ""
     },
     "reviewer": {
       "name": "김과장",
       "title": "과장",
       "email_local": "acme-kim-reviewer",
-      "model": "anthropic/claude-haiku-4-5",
+      "model": "xiaomi/mimo-v2-omni",
       "custom_prompt": ""
     }
   },

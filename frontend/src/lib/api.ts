@@ -72,26 +72,29 @@ export const api = {
     request<any>(`/dm/${userId}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
 
   // Drive API
-  getDriveFiles: (search?: string, tag?: string) => {
+  getDriveFiles: (opts?: { search?: string; tag?: string; folder_id?: string | null; root?: boolean }) => {
     const params = new URLSearchParams()
-    if (search) params.set('search', search)
-    if (tag) params.set('tag', tag)
+    if (opts?.search) params.set('search', opts.search)
+    if (opts?.tag) params.set('tag', opts.tag)
+    if (opts?.folder_id) params.set('folder_id', opts.folder_id)
+    if (opts?.root) params.set('root', 'true')
     const qs = params.toString()
     return request<any[]>(`/drive/files${qs ? '?' + qs : ''}`)
   },
   getDriveFile: (id: string) => request<any>(`/drive/files/${id}`),
-  createDriveFile: (data: { name: string; content: string; mime_type?: string; tags?: string[]; description?: string }) =>
+  createDriveFile: (data: { name: string; content: string; mime_type?: string; tags?: string[]; description?: string; folder_id?: string | null }) =>
     request<any>('/drive/files', { method: 'POST', body: JSON.stringify(data) }),
-  updateDriveFile: (id: string, data: { name?: string; content?: string; tags?: string[]; description?: string }) =>
+  updateDriveFile: (id: string, data: { name?: string; content?: string; tags?: string[]; description?: string; folder_id?: string | null }) =>
     request<any>(`/drive/files/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteDriveFile: (id: string) =>
     request<any>(`/drive/files/${id}`, { method: 'DELETE' }),
-  uploadDriveFile: (file: File, meta?: { name?: string; tags?: string[]; description?: string }) => {
+  uploadDriveFile: (file: File, meta?: { name?: string; tags?: string[]; description?: string; folder_id?: string | null }) => {
     const form = new FormData()
     form.append('file', file)
     if (meta?.name) form.append('name', meta.name)
     if (meta?.tags) form.append('tags', JSON.stringify(meta.tags))
     if (meta?.description) form.append('description', meta.description)
+    if (meta?.folder_id) form.append('folder_id', meta.folder_id)
     const token = getToken()
     return fetch(`${BASE}/drive/upload`, {
       method: 'POST',
@@ -99,6 +102,23 @@ export const api = {
       body: form,
     }).then(r => r.json())
   },
+
+  // Drive 폴더 API
+  getDriveTree: () => request<{ folders: any[]; files: any[] }>('/drive/tree'),
+  getDriveFolders: (parent_id?: string | null) => {
+    const params = new URLSearchParams()
+    if (parent_id) params.set('parent_id', parent_id)
+    const qs = params.toString()
+    return request<any[]>(`/drive/folders${qs ? '?' + qs : ''}`)
+  },
+  createDriveFolder: (name: string, parent_id?: string | null) =>
+    request<any>('/drive/folders', { method: 'POST', body: JSON.stringify({ name, parent_id: parent_id || null }) }),
+  updateDriveFolder: (id: string, data: { name?: string; parent_id?: string | null }) =>
+    request<any>(`/drive/folders/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteDriveFolder: (id: string, recursive = false) =>
+    request<any>(`/drive/folders/${id}${recursive ? '?recursive=true' : ''}`, { method: 'DELETE' }),
+  resolveDrivePath: (path: string) =>
+    request<any>(`/drive/resolve?path=${encodeURIComponent(path)}`),
 
   uploadFile: (file: File) => {
     const form = new FormData()

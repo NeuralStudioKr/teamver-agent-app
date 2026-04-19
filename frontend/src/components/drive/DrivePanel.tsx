@@ -4,12 +4,12 @@ import { api, getApiBase } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
   FileText, File, ImageIcon, Upload, Plus, Search,
-  Trash2, Edit3, Download, X, ChevronLeft, Tag, Eye, Save
+  Trash2, Edit3, Download, X, ChevronLeft, Eye, Save,
+  Folder, FolderPlus, Link as LinkIcon, Home
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
-// Simple MD renderer (no external dep)
 function renderMarkdown(md: string): string {
   return md
     .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-1">$1</h3>')
@@ -39,6 +39,7 @@ function formatSize(bytes: number) {
 
 interface DriveFile {
   id: string
+  folder_id?: string | null
   name: string
   mime_type: string
   size: number
@@ -51,45 +52,122 @@ interface DriveFile {
   updated_at: string
 }
 
+interface DriveFolder {
+  id: string
+  parent_id: string | null
+  name: string
+  path: string // 예: '/폴더A/폴더B'
+  created_by_name: string
+  created_at: string
+}
+
+// 클립보드 복사 (https 이외 환경에서도 동작하도록 fallback)
+async function copyText(text: string) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {}
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  try {
+    document.execCommand('copy')
+    return true
+  } finally {
+    document.body.removeChild(ta)
+  }
+}
+
 export default function DrivePanel() {
+  const [folders, setFolders] = useState<DriveFolder[]>([])
   const [files, setFiles] = useState<DriveFile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [activeTag, setActiveTag] = useState('')
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null) // null = 루트
   const [selected, setSelected] = useState<DriveFile | null>(null)
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
   const [editName, setEditName] = useState('')
   const [showNewModal, setShowNewModal] = useState(false)
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false)
   const [newName, setNewName] = useState('')
   const [newContent, setNewContent] = useState('')
   const [newTags, setNewTags] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [newFolderName, setNewFolderName] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [viewMode, setViewMode] = useState<'rendered' | 'raw'>('rendered')
 
-  const loadFiles = async (s?: string, t?: string) => {
+  const loadAll = async () => {
     setLoading(true)
     try {
-      const data = await api.getDriveFiles(s || search || undefined, t || activeTag || undefined)
-      setFiles(data)
+      const tree = await api.getDriveTree()
+      setFolders(tree.folders || [])
+      setFiles(tree.files || [])
     } catch {}
     setLoading(false)
   }
 
-  useEffect(() => { loadFiles() }, [])
+  useEffect(() => { loadAll() }, [])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    loadFiles(search, activeTag)
+  const currentFolder = currentFolderId
+    ? folders.find(f => f.id === currentFolderId) || null
+    : null
+  const currentPath = currentFolder?.path || ''
+
+  // 현재 폴더의 자식 폴더/파일
+  const childFolders = folders.filter(f => (f.parent_id || null) === currentFolderId)
+  const childFiles = files.filter(f => (f.folder_id || null) === currentFolderId)
+
+  // 검색 필터 (이름/설명/태그)
+  const q = search.trim().toLowerCase()
+  const visFolders = q
+    ? childFolders.filter(f => f.name.toLowerCase().includes(q))
+    : childFolders
+  const visFiles = q
+    ? childFiles.filter(f =>
+        f.name.toLowerCase().includes(q) ||
+        (f.description || '').toLowerCase().includes(q) ||
+        (f.tags || []).some(t => t.toLowerCase().includes(q))
+      )
+    : childFiles
+
+  // breadcrumb: 현재 폴더 체인
+  const breadcrumb: DriveFolder[] = []
+  {
+    let cur = currentFolder
+    while (cur) {
+      breadcrumb.unshift(cur)
+      cur = cur.parent_id ? (folders.find(f => f.id === cur!.parent_id) || null) : null
+    }
   }
 
-  const allTags = Array.from(new Set(files.flatMap(f => f.tags || []))).filter(Boolean)
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2000)
+  }
+
+  const copyPath = async (p: string) => {
+    const full = `drive:${p}`
+    const ok = await copyText(full)
+    showToast(ok ? `경로 복사됨: ${full}` : '복사 실패')
+  }
+
+  const filePath = (f: DriveFile): string => {
+    const folder = f.folder_id ? folders.find(x => x.id === f.folder_id) : null
+    const prefix = folder ? folder.path : ''
+    return `${prefix}/${f.name}`
+  }
 
   const handleSelect = async (file: DriveFile) => {
-    // fetch fresh with content
     try {
       const full = await api.getDriveFile(file.id)
       setSelected(full)
@@ -110,10 +188,7 @@ export default function DrivePanel() {
     if (!selected) return
     setSaving(true)
     try {
-      const updated = await api.updateDriveFile(selected.id, {
-        name: editName,
-        content: editContent,
-      })
+      const updated = await api.updateDriveFile(selected.id, { name: editName, content: editContent })
       setSelected(updated)
       setFiles(prev => prev.map(f => f.id === updated.id ? { ...f, name: updated.name, updated_at: updated.updated_at } : f))
       setEditing(false)
@@ -137,6 +212,7 @@ export default function DrivePanel() {
         content: newContent,
         tags: newTags.split(',').map(t => t.trim()).filter(Boolean),
         description: newDesc,
+        folder_id: currentFolderId,
       })
       setFiles(prev => [file, ...prev])
       setShowNewModal(false)
@@ -146,12 +222,41 @@ export default function DrivePanel() {
     setSaving(false)
   }
 
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return
+    setSaving(true)
+    try {
+      const folder = await api.createDriveFolder(newFolderName.trim(), currentFolderId)
+      setFolders(prev => [...prev, folder])
+      setNewFolderName('')
+      setShowNewFolderModal(false)
+    } catch (e: any) {
+      alert(e?.message || '폴더 생성 실패')
+    }
+    setSaving(false)
+  }
+
+  const handleDeleteFolder = async (folder: DriveFolder) => {
+    const recursive = confirm(
+      `폴더 "${folder.name}" 을(를) 삭제합니다.\n\n` +
+      `확인: 하위 폴더/파일까지 전부 삭제\n취소: 폴더만 삭제 (내부 파일은 루트로 이동)`
+    )
+    try {
+      await api.deleteDriveFolder(folder.id, recursive)
+      // 트리 갱신
+      await loadAll()
+      if (currentFolderId === folder.id) setCurrentFolderId(folder.parent_id)
+    } catch (e: any) {
+      alert(e?.message || '폴더 삭제 실패')
+    }
+  }
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
     try {
-      const result = await api.uploadDriveFile(file)
+      const result = await api.uploadDriveFile(file, { folder_id: currentFolderId })
       setFiles(prev => [result, ...prev])
       handleSelect(result)
     } catch {}
@@ -176,9 +281,9 @@ export default function DrivePanel() {
   const isImage = (f: DriveFile) => f.mime_type?.startsWith('image/')
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full relative">
       {/* Sidebar */}
-      <div className="w-72 flex-shrink-0 border-r border-border flex flex-col h-full">
+      <div className="w-80 flex-shrink-0 border-r border-border flex flex-col h-full">
         {/* Header */}
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -186,6 +291,13 @@ export default function DrivePanel() {
             <span className="font-semibold text-sm">드라이브</span>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowNewFolderModal(true)}
+              className="p-1.5 rounded-md hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
+              title="새 폴더"
+            >
+              <FolderPlus size={14} />
+            </button>
             <button
               onClick={() => setShowNewModal(true)}
               className="p-1.5 rounded-md hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
@@ -200,78 +312,133 @@ export default function DrivePanel() {
             >
               {uploading ? <span className="text-xs">...</span> : <Upload size={14} />}
             </button>
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload}
-              accept="*/*" />
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} accept="*/*" />
           </div>
         </div>
 
+        {/* Breadcrumb */}
+        <div className="px-3 py-2 border-b border-border flex items-center gap-1 text-xs overflow-x-auto">
+          <button
+            onClick={() => setCurrentFolderId(null)}
+            className={cn('p-1 rounded hover:bg-accent/50 flex items-center gap-1',
+              !currentFolderId ? 'text-foreground font-medium' : 'text-muted-foreground')}
+            title="루트"
+          >
+            <Home size={12} /> 루트
+          </button>
+          {breadcrumb.map((f) => (
+            <span key={f.id} className="flex items-center gap-1 text-muted-foreground">
+              <span>/</span>
+              <button
+                onClick={() => setCurrentFolderId(f.id)}
+                className={cn('px-1 rounded hover:bg-accent/50',
+                  currentFolderId === f.id ? 'text-foreground font-medium' : 'text-muted-foreground')}
+              >
+                {f.name}
+              </button>
+            </span>
+          ))}
+          <span className="flex-1" />
+          <button
+            onClick={() => copyPath(currentPath || '/')}
+            className="p-1 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+            title="현재 경로 복사 (drive:/...)"
+          >
+            <LinkIcon size={12} />
+          </button>
+        </div>
+
         {/* Search */}
-        <form onSubmit={handleSearch} className="px-3 py-2 border-b border-border">
+        <div className="px-3 py-2 border-b border-border">
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="파일 검색..."
+              placeholder="현재 폴더에서 검색..."
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-secondary border border-border rounded-md outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-        </form>
+        </div>
 
-        {/* Tags */}
-        {allTags.length > 0 && (
-          <div className="px-3 py-2 border-b border-border flex flex-wrap gap-1">
-            <button
-              onClick={() => { setActiveTag(''); loadFiles(search, '') }}
-              className={cn('text-xs px-2 py-0.5 rounded-full border transition-colors',
-                !activeTag ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary')}
-            >
-              전체
-            </button>
-            {allTags.map(t => (
-              <button key={t}
-                onClick={() => { setActiveTag(t); loadFiles(search, t) }}
-                className={cn('text-xs px-2 py-0.5 rounded-full border transition-colors',
-                  activeTag === t ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary')}
-              >
-                #{t}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* File list */}
+        {/* Folder + File list */}
         <div className="flex-1 overflow-y-auto py-1">
           {loading ? (
             <div className="text-center text-xs text-muted-foreground py-8">로딩 중...</div>
-          ) : files.length === 0 ? (
-            <div className="text-center text-xs text-muted-foreground py-8">파일이 없습니다</div>
+          ) : visFolders.length === 0 && visFiles.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              {currentFolderId ? '빈 폴더' : '파일이 없습니다'}
+            </div>
           ) : (
-            files.map(file => (
-              <button
-                key={file.id}
-                onClick={() => handleSelect(file)}
-                className={cn(
-                  'w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-accent/50 transition-colors text-left',
-                  selected?.id === file.id ? 'bg-accent/70' : ''
-                )}
-              >
-                <div className="mt-0.5 flex-shrink-0">{getMimeIcon(file.mime_type)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium truncate">{file.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {file.created_by_name} · {formatSize(file.size)}
-                  </div>
-                  {file.tags?.length > 0 && (
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {file.tags.slice(0, 3).map(t => (
-                        <span key={t} className="text-xs px-1 py-0 rounded bg-primary/10 text-primary">#{t}</span>
-                      ))}
+            <>
+              {visFolders.map(folder => (
+                <div key={folder.id}
+                  className={cn('group flex items-start gap-2.5 px-3 py-2 hover:bg-accent/50 transition-colors')}
+                >
+                  <button
+                    onClick={() => setCurrentFolderId(folder.id)}
+                    className="flex items-start gap-2.5 flex-1 min-w-0 text-left"
+                  >
+                    <Folder size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">{folder.name}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{folder.created_by_name}</div>
                     </div>
-                  )}
+                  </button>
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); copyPath(folder.path) }}
+                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                      title="폴더 경로 복사"
+                    >
+                      <LinkIcon size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder) }}
+                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive"
+                      title="폴더 삭제"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
-              </button>
-            ))
+              ))}
+              {visFiles.map(file => (
+                <div key={file.id}
+                  className={cn('group flex items-start gap-2.5 px-3 py-2 hover:bg-accent/50 transition-colors',
+                    selected?.id === file.id ? 'bg-accent/70' : '')}
+                >
+                  <button
+                    onClick={() => handleSelect(file)}
+                    className="flex items-start gap-2.5 flex-1 min-w-0 text-left"
+                  >
+                    <div className="mt-0.5 flex-shrink-0">{getMimeIcon(file.mime_type)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">{file.name}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {file.created_by_name} · {formatSize(file.size)}
+                      </div>
+                      {file.tags?.length > 0 && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {file.tags.slice(0, 3).map(t => (
+                            <span key={t} className="text-xs px-1 py-0 rounded bg-primary/10 text-primary">#{t}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); copyPath(filePath(file)) }}
+                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                      title="파일 경로 복사"
+                    >
+                      <LinkIcon size={12} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </div>
@@ -282,13 +449,24 @@ export default function DrivePanel() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <File size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">파일을 선택하거나 새로 만드세요</p>
+              <p className="text-sm">
+                {currentFolder ? `"${currentFolder.name}" 폴더` : '드라이브'} — 파일을 선택하거나 새로 만드세요
+              </p>
+              <p className="text-xs mt-2 opacity-70">
+                업로드/새 문서/새 폴더는 <span className="font-mono">{currentPath || '/'}</span> 에 저장됩니다
+              </p>
               <div className="flex gap-2 justify-center mt-4">
+                <button
+                  onClick={() => setShowNewFolderModal(true)}
+                  className="text-xs px-4 py-2 border border-border rounded-lg hover:bg-accent/50 transition-colors flex items-center gap-1.5"
+                >
+                  <FolderPlus size={13} /> 새 폴더
+                </button>
                 <button
                   onClick={() => setShowNewModal(true)}
                   className="text-xs px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1.5"
                 >
-                  <Plus size={13} /> 새 문서 작성
+                  <Plus size={13} /> 새 문서
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -301,7 +479,6 @@ export default function DrivePanel() {
           </div>
         ) : (
           <>
-            {/* File header */}
             <div className="px-5 py-3 border-b border-border flex items-center gap-3 flex-shrink-0">
               <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent/50">
                 <ChevronLeft size={16} />
@@ -316,7 +493,16 @@ export default function DrivePanel() {
                 ) : (
                   <h2 className="font-semibold text-sm truncate">{selected.name}</h2>
                 )}
-                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                  <span className="font-mono">drive:{filePath(selected)}</span>
+                  <button
+                    onClick={() => copyPath(filePath(selected))}
+                    className="p-0.5 rounded hover:bg-accent/50 hover:text-foreground"
+                    title="경로 복사"
+                  >
+                    <LinkIcon size={10} />
+                  </button>
+                  <span>·</span>
                   <span>{selected.created_by_name}</span>
                   <span>·</span>
                   <span>{formatSize(selected.size)}</span>
@@ -371,7 +557,6 @@ export default function DrivePanel() {
               </div>
             </div>
 
-            {/* File content */}
             <div className="flex-1 overflow-auto p-5">
               {isImage(selected) && selected.file_url ? (
                 <div className="flex justify-center">
@@ -414,6 +599,43 @@ export default function DrivePanel() {
         )}
       </div>
 
+      {/* New folder modal */}
+      {showNewFolderModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl w-full max-w-sm mx-4 shadow-xl">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><FolderPlus size={14} /> 새 폴더</h3>
+              <button onClick={() => setShowNewFolderModal(false)} className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent/50">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="text-xs text-muted-foreground">
+                위치: <span className="font-mono">{currentPath || '/'}</span>
+              </div>
+              <input
+                value={newFolderName}
+                onChange={e => setNewFolderName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder() }}
+                placeholder="폴더 이름"
+                autoFocus
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="flex gap-2 px-5 py-3 border-t border-border">
+              <button onClick={() => setShowNewFolderModal(false)}
+                className="flex-1 px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                취소
+              </button>
+              <button onClick={handleCreateFolder} disabled={saving || !newFolderName.trim()}
+                className="flex-1 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {saving ? '생성 중...' : '생성'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* New file modal */}
       {showNewModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -425,6 +647,9 @@ export default function DrivePanel() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              <div className="text-xs text-muted-foreground">
+                위치: <span className="font-mono">{currentPath || '/'}</span>
+              </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">파일 이름 *</label>
                 <input
@@ -470,6 +695,13 @@ export default function DrivePanel() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-4 py-2 rounded-lg shadow-lg z-50">
+          {toast}
         </div>
       )}
     </div>

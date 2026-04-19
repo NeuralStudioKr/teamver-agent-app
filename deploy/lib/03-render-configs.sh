@@ -53,19 +53,19 @@ API_URL="https://api.${CID}.${MAIL_DOMAIN}"
 c_name=$(j '.ai_employees.coordinator.name')
 c_title=$(j '.ai_employees.coordinator.title')
 c_local=$(j '.ai_employees.coordinator.email_local')
-c_model=$(j '.ai_employees.coordinator.model // "anthropic/claude-haiku-4-5"')
+c_model=$(j '.ai_employees.coordinator.model // "xiaomi/mimo-v2-omni"')
 c_cust=$(j '.ai_employees.coordinator.custom_prompt // ""')
 
 w_name=$(j '.ai_employees.writer.name')
 w_title=$(j '.ai_employees.writer.title')
 w_local=$(j '.ai_employees.writer.email_local')
-w_model=$(j '.ai_employees.writer.model // "anthropic/claude-haiku-4-5"')
+w_model=$(j '.ai_employees.writer.model // "xiaomi/mimo-v2-omni"')
 w_cust=$(j '.ai_employees.writer.custom_prompt // ""')
 
 r_name=$(j '.ai_employees.reviewer.name')
 r_title=$(j '.ai_employees.reviewer.title')
 r_local=$(j '.ai_employees.reviewer.email_local')
-r_model=$(j '.ai_employees.reviewer.model // "anthropic/claude-haiku-4-5"')
+r_model=$(j '.ai_employees.reviewer.model // "xiaomi/mimo-v2-omni"')
 r_cust=$(j '.ai_employees.reviewer.custom_prompt // ""')
 
 c_email="${c_local}@${MAIL_DOMAIN}"

@@ -1,10 +1,11 @@
 /**
- * Teamver AI 자동응답 서비스
- * OpenRouter를 통해 Claude 모델로 응답 생성
+ * Teamver AI 자동응답 서비스 (EXTERNAL_BOTS_ENABLED=false 일 때만 쓰는 fallback).
+ * 운영에서는 OpenClaw 컨테이너가 응답을 담당하므로 이 경로는 비활성.
  */
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ""
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+const AI_FALLBACK_MODEL = process.env.AI_FALLBACK_MODEL || "xiaomi/mimo-v2-omni"
 
 const AGENT_PERSONAS: Record<string, { name: string; system: string }> = {
   "00000000-0000-0000-0000-000000000001": {
@@ -45,7 +46,7 @@ export async function generateAIResponse(
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "anthropic/claude-haiku-4-5",
+        model: AI_FALLBACK_MODEL,
         max_tokens: 500,
         messages: [
           { role: "system", content: persona.system },

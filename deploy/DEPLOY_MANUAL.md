@@ -93,16 +93,17 @@
 | 이름 | `김상무` / `김부장` / `김과장` |
 | 직함 | `상무` / `부장` / `과장` |
 | 이메일 local (`@` 앞부분, 고객사 prefix 포함) | `acme-kim-coordinator` |
-| LLM 모델 (기본 `anthropic/claude-haiku-4-5`) | 아래 허용 목록 참고 |
+| LLM 모델 (기본 `xiaomi/mimo-v2-omni`) | 아래 허용 목록 참고 |
 | 맞춤 프롬프트 (고객사 특수 지시, 없으면 빈 문자열) | `"Acme Corp는 B2B SaaS 회사..."` |
 
 **페르소나 자동 이식**: 슬롯별 기본 인격은 내부 원본인 **민팀장(PM) / 민소장(설계) / 민이사(정확성)** 워크스페이스 원문(`openclaw-bot/personas/{coordinator,writer,reviewer}/{AGENTS,SOUL,USER}.md`)에서 가져와 붙는다. 배포 시 고객사 3명 이름(`AI_COORDINATOR_NAME / AI_WRITER_NAME / AI_REVIEWER_NAME`)이 docker-compose를 통해 각 봇 컨테이너에 `TEAM_COORDINATOR_NAME` / `TEAM_WRITER_NAME` / `TEAM_REVIEWER_NAME`로 전달되고, bot.mjs가 원문 안의 "민팀장/민소장/민이사" 언급을 실제 이름으로 치환해서 system prompt로 쓴다. 따라서 고객사는 **이름·이메일·직함만 알려주면** 세 봇이 민씨 3형제의 성격과 팀워크 원칙을 그대로 갖고 뜬다. 기본 인격을 고객사별로 다르게 하고 싶으면 `BOT_CUSTOM_PROMPT`로 덧붙인다(원 페르소나는 유지).
 
 **허용 LLM 모델** (OpenRouter 라우팅 기준):
-- `anthropic/claude-haiku-4-5` (빠름·저렴·기본)
+- `xiaomi/mimo-v2-omni` (멀티모달·기본)
+- `xiaomi/mimo-v2-pro`
+- `anthropic/claude-haiku-4-5` (빠름·저렴)
 - `anthropic/claude-sonnet-4-5`
 - `anthropic/claude-opus-4-6`
-- `openrouter/xiaomi/mimo-v2-pro` (저렴)
 
 3명이 같은 모델일 필요는 없다. 조율자만 더 강한 모델을 쓰는 식도 OK.
 

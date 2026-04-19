@@ -6,6 +6,7 @@ import { api, getApiBase } from '@/lib/api'
 import { Send, ArrowLeft, Paperclip } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { renderWithDriveLinks } from '@/components/chat/DriveLinks'
 
 export default function DmPage() {
   const { userId } = useParams<{ userId: string }>()
@@ -118,7 +119,7 @@ export default function DmPage() {
                 </a>
               ) : null}
               {msg.content && (
-                <div className="text-sm whitespace-pre-wrap break-words mt-0.5">{msg.content}</div>
+                <div className="text-sm whitespace-pre-wrap break-words mt-0.5">{renderWithDriveLinks(msg.content)}</div>
               )}
             </div>
           </div>
