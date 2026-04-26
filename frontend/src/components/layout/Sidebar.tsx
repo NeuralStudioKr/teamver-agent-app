@@ -320,10 +320,10 @@ export default function Sidebar({ workspace, channels, members, activeChannel, o
                       )}>
                         {member.name[0]}
                       </div>
-                      <span className="truncate">{member.name}{isBot && BOT_ROLE_LABEL[member.id] ? ` (${BOT_ROLE_LABEL[member.id]})` : ''}</span>
+                      <span className="truncate flex-1">{member.name}{isBot && BOT_ROLE_LABEL[member.id] ? ` (${BOT_ROLE_LABEL[member.id]})` : ''}</span>
                       {isBot && (
                         <span className={cn(
-                          "text-xs ml-auto",
+                          "text-xs flex-shrink-0",
                           botStatus === 'paused' ? 'text-destructive' : 'text-muted-foreground opacity-60'
                         )}>
                           {botStatus === 'paused' ? '중지' : 'AI'}
@@ -331,49 +331,47 @@ export default function Sidebar({ workspace, channels, members, activeChannel, o
                       )}
                     </Link>
                     {isBot && (
-                      <>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setMenuForBot(menuForBot === member.id ? null : member.id) }}
-                          title="봇 옵션"
-                          className={cn(
-                            'absolute right-1 top-1/2 -translate-y-1/2 flex-shrink-0 p-0.5 rounded hover:bg-accent/70 transition-opacity',
-                            menuForBot === member.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                          )}
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-                        {menuForBot === member.id && (
-                          <div
-                            ref={botMenuRef}
-                            className="absolute right-1 top-full mt-1 z-30 min-w-[140px] bg-card border border-border rounded-lg shadow-lg py-1"
-                          >
-                            {botStatus === 'running' ? (
-                              <button
-                                onClick={() => pauseBot(member.id, member.name)}
-                                disabled={busy}
-                                className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-foreground hover:bg-accent/60 text-left"
-                              >
-                                <Pause size={13} />일시중지
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => restartBot(member.id, member.name)}
-                                disabled={busy}
-                                className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-foreground hover:bg-accent/60 text-left"
-                              >
-                                <Play size={13} />재시작
-                              </button>
-                            )}
-                            <button
-                              onClick={() => restartBot(member.id, member.name)}
-                              disabled={busy}
-                              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-foreground hover:bg-accent/60 text-left"
-                            >
-                              <RefreshCw size={13} />게이트웨이 재시작
-                            </button>
-                          </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMenuForBot(menuForBot === member.id ? null : member.id) }}
+                        title="봇 옵션"
+                        className={cn(
+                          'absolute right-7 top-1/2 -translate-y-1/2 flex-shrink-0 p-0.5 rounded hover:bg-accent/70 transition-opacity',
+                          menuForBot === member.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         )}
-                      </>
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                    )}
+                    {menuForBot === member.id && (
+                      <div
+                        ref={botMenuRef}
+                        className="absolute right-1 top-full mt-1 z-30 min-w-[140px] bg-card border border-border rounded-lg shadow-lg py-1"
+                      >
+                        {botStatus === 'running' ? (
+                          <button
+                            onClick={() => pauseBot(member.id, member.name)}
+                            disabled={busy}
+                            className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-foreground hover:bg-accent/60 text-left"
+                          >
+                            <Pause size={13} />일시중지
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => restartBot(member.id, member.name)}
+                            disabled={busy}
+                            className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-foreground hover:bg-accent/60 text-left"
+                          >
+                            <Play size={13} />재시작
+                          </button>
+                        )}
+                        <button
+                          onClick={() => restartBot(member.id, member.name)}
+                          disabled={busy}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-foreground hover:bg-accent/60 text-left"
+                        >
+                          <RefreshCw size={13} />게이트웨이 재시작
+                        </button>
+                      </div>
                     )}
                   </div>
                 )
