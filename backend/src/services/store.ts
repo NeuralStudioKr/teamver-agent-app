@@ -121,7 +121,7 @@ class Store {
   // === Messages ===
   async getMessages(channelId: string, limit = 50): Promise<Message[]> {
     const { rows } = await pool.query(
-      `SELECT * FROM messages WHERE channel_id=$1 AND thread_id IS NULL ORDER BY created_at ASC LIMIT $2`,
+      `SELECT * FROM messages WHERE channel_id=$1 AND thread_id IS NULL ORDER BY created_at DESC LIMIT $2`,
       [channelId, limit]
     )
     return rows.map(r => this.toMessage(r))
