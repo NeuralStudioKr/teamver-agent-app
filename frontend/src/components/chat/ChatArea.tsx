@@ -16,6 +16,16 @@ interface ChatAreaProps {
 
 const EMOJI_LIST = ['👍','❤️','😂','😮','😢','🎉','🔥','💯']
 
+/** API·소켓 병합 후에도 채널 타임라인을 항상 오래된 것→최신 순으로 맞춤 */
+function sortChannelMessagesAsc(list: any[]) {
+  return [...list].sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime()
+    const tb = new Date(b.createdAt).getTime()
+    if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return ta - tb
+    return String(a.id).localeCompare(String(b.id))
+  })
+}
+
 export default function ChatArea({ channelId, socket, currentUser, apiBase }: ChatAreaProps) {
   const { channels } = useWorkspace()
   const activeChannel = channels.find(c => c.id === channelId)
@@ -32,9 +42,14 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
   const [showInvite, setShowInvite] = useState(false)
   const [allMembers, setAllMembers] = useState<any[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const typingTimerRef = useRef<any>(null)
   const dragCounterRef = useRef(0)
+  const shouldScrollRef = useRef(true)
 
   // Thread panel resize
   const THREAD_MIN = 280
@@ -71,31 +86,51 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
     window.addEventListener('mouseup', onUp)
   }, [])
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (loadOffset = 0) => {
     if (!channelId) return
-    setLoading(true)
+    if (loadOffset === 0) setLoading(true)
+    else setLoadingMore(true)
     try {
       const [msgs, members, all] = await Promise.all([
-        api.getMessages(channelId),
+        api.getMessages(channelId, { limit: 50, offset: loadOffset }),
         api.getChannelMembers(channelId),
         api.getMembers(),
       ])
-      setMessages(msgs)
+      const sorted = sortChannelMessagesAsc(msgs ?? [])
+      if (loadOffset === 0) {
+        setMessages(sorted)
+        setOffset(sorted.length)
+        setHasMore((msgs ?? []).length === 50)
+      } else {
+        shouldScrollRef.current = false
+        setMessages(prev => sortChannelMessagesAsc([...prev, ...sorted]))
+        setOffset(prev => prev + sorted.length)
+        setHasMore((msgs ?? []).length === 50)
+      }
       setChannelMembers(members)
       setAllMembers(all)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }, [channelId])
 
   useEffect(() => { loadMessages() }, [loadMessages])
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => {
+    if (shouldScrollRef.current && messages.length) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    shouldScrollRef.current = true
+  }, [messages])
 
   useEffect(() => {
     if (!socket) return
     const onMessage = (msg: any) => {
       if (msg.channelId === channelId && !msg.threadId) {
-        setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg])
+        setMessages(prev => {
+          if (prev.find(m => m.id === msg.id)) return prev
+          return sortChannelMessagesAsc([...prev, msg])
+        })
       }
     }
     const onThreadReply = ({ threadId, message }: any) => {
@@ -175,6 +210,14 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
     const file = e.target.files?.[0]
     if (file) await uploadAndSend(file)
     e.target.value = ''
+  }
+
+  const onScrollContainer = () => {
+    const el = scrollContainerRef.current
+    if (!el || loadingMore || !hasMore) return
+    if (el.scrollTop <= 60) {
+      loadMessages(offset)
+    }
   }
 
   const hasFiles = (e: React.DragEvent) =>
@@ -335,7 +378,8 @@ export default function ChatArea({ channelId, socket, currentUser, apiBase }: Ch
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+        <div ref={scrollContainerRef} onScroll={onScrollContainer} className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+          {loadingMore && <div className="text-center text-muted-foreground text-sm py-4">이전 메시지 로딩...</div>}
           {loading && <div className="text-center text-muted-foreground text-sm py-4">로딩 중...</div>}
           {messages.map(msg => (
             <MessageItem

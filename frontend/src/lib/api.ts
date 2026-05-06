@@ -51,7 +51,13 @@ export const api = {
     request<any>(`/channels/${channelId}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
   deleteChannel: (channelId: string) =>
     request<any>(`/channels/${channelId}`, { method: 'DELETE' }),
-  getMessages: (channelId: string) => request<any[]>(`/channels/${channelId}/messages`),
+  getMessages: (channelId: string, params?: { limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.set('limit', String(params.limit))
+    if (params?.offset !== undefined) searchParams.set('offset', String(params.offset))
+    const qs = searchParams.toString()
+    return request<any[]>(`/channels/${channelId}/messages${qs ? '?' + qs : ''}`)
+  },
   getChannelMembers: (channelId: string) => request<any[]>(`/channels/${channelId}/members`),
   inviteChannelMember: (channelId: string, userId: string) =>
     request<any>(`/channels/${channelId}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),

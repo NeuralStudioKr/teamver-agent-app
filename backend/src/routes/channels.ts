@@ -48,7 +48,9 @@ export async function channelRoutes(app: FastifyInstance) {
 
   app.get('/channels/:channelId/messages', { onRequest: [app.authenticate] }, async (req) => {
     const { channelId } = req.params as any
-    return store.getMessages(channelId)
+    const limit = Math.min(parseInt((req.query as any).limit) || 50, 200)
+    const offset = parseInt((req.query as any).offset) || 0
+    return store.getMessages(channelId, limit, offset)
   })
 
   // HTTP로 채널 메시지 전송 — OpenClaw 등 외부 클라이언트가 Socket.IO 없이 메시지 POST 가능

@@ -119,13 +119,13 @@ class Store {
   }
 
   // === Messages ===
-  async getMessages(channelId: string, limit = 50): Promise<Message[]> {
+  async getMessages(channelId: string, limit = 50, offset = 0): Promise<Message[]> {
     // 최근 N건을 가져온 뒤 시간순(오래된 것→최신)으로 반환 — 채팅 UI·소켓 append([...prev, msg])와 일치.
     const { rows } = await pool.query(
       `SELECT * FROM (
-         SELECT * FROM messages WHERE channel_id=$1 AND thread_id IS NULL ORDER BY created_at DESC LIMIT $2
+         SELECT * FROM messages WHERE channel_id=$1 AND thread_id IS NULL ORDER BY created_at DESC LIMIT $2 OFFSET $3
        ) recent ORDER BY created_at ASC`,
-      [channelId, limit]
+      [channelId, limit, offset]
     )
     return rows.map(r => this.toMessage(r))
   }
